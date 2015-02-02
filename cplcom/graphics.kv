@@ -1,0 +1,30 @@
+
+# a icon widget with a label
+<LabeledIcon>:
+    size_hint: None, None
+    size: max(self.icon_size[0], self.max_width), self.icon_size[1] + self.text_height
+    text: ''
+    max_width: 50
+    text_height: 62
+    background_down: 'green-led-on-th.png'
+    background_normal: 'green-led-off-th.png'
+    icon_size: 38, 38
+    halign: 'center'
+    canvas:
+        Color:
+            rgb: (1, 1, 1)
+            a: .5 if self.disabled else 1
+        Rectangle:
+            size: root.icon_size
+            pos: self.x + self.width / 2. - self.icon_size[0] / 2., min(self.top - self.icon_size[1], self.y + root.text_height + 10)
+            source: self.background_normal if self.state == 'normal' else self.background_down
+    Label:
+        pos: root.pos
+        text: root.text
+        markup: True
+        size: root.width, root.text_height
+        text_size: self.size
+        valign: 'top'
+        halign: root.halign
+        strip: True
+        font_size: '11dp'
