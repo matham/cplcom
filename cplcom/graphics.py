@@ -3,18 +3,27 @@ __all__ = ('VirtualSwitch', )
 
 
 import math
+from os.path import join, dirname
 
 from kivy.uix.widget import Widget
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.behaviors import ToggleButtonBehavior
-from kivy.lang import Factory
+from kivy.uix.popup import Popup
+from kivy.lang import Factory, Builder
 from kivy.properties import (
         ObjectProperty, StringProperty, NumericProperty, BooleanProperty)
 from kivy.clock import Clock
+from kivy.graphics import Rectangle, BindTexture
+from kivy.graphics.texture import Texture
+from kivy.graphics.fbo import Fbo
+
+
+Builder.load_file(join(dirname(__file__), 'graphics.kv'))
 
 
 class LabeledIcon(Widget):
-    pass
+
+    text = StringProperty('')
 
 
 class VirtualSwitch(object):
@@ -123,5 +132,86 @@ class PortContainer(GridLayout):
         pat = self.name_pat
         for i, cls in enumerate(classes):
             self.add_widget(cls(chan_name=pat.format(i)))
+
+
+class FFImage(Widget):
+
+    YUV_RGB_FS = """
+    $HEADER$
+    uniform sampler2D tex_y;
+    uniform sampler2D tex_u;
+    uniform sampler2D tex_v;
+
+    void main(void) {
+        float y = texture2D(tex_y, tex_coord0).r;
+        float u = texture2D(tex_u, tex_coord0).r - 0.5;
+        float v = texture2D(tex_v, tex_coord0).r - 0.5;
+        float r = y +             1.402 * v;
+        float g = y - 0.344 * u - 0.714 * v;
+        float b = y + 1.772 * u;
+        gl_FragColor = vec4(r, g, b, 1.0);
+    }
+    """
+
+    fmt_conversion = {'rgb24': 'rgb', 'gray': 'luminance'}
+
+    _texture = ObjectProperty(None)
+    _pix_fmt = ''
+
+    def display(self, img):
+        fmt = img.get_pixel_format()
+        if (list(img.get_size()) != self.size or self._texture is None or
+                self._pix_fmt != fmt):
+            self.size = w, h = img.get_size()
+            self._pix_fmt = fmt
+            if fmt not in ('rgb24', 'yuv420p', 'gray'):
+                raise TypeError(
+                    '{} is not an accepted image format'.format(fmt))
+
+            if fmt == 'yuv420p':
+                w2 = int(w / 2)
+                h2 = int(h / 2)
+                self._tex_y = Texture.create(
+                    size=(w, h), colorfmt='luminance')
+                self._tex_u = Texture.create(
+                    size=(w2, h2), colorfmt='luminance')
+                self._tex_v = Texture.create(
+                    size=(w2, h2), colorfmt='luminance')
+                with self.canvas:
+                    self._fbo = fbo = Fbo(size=self.size)
+                with fbo:
+                    BindTexture(texture=self._tex_u, index=1)
+                    BindTexture(texture=self._tex_v, index=2)
+                    Rectangle(size=fbo.size, texture=self._tex_y)
+                fbo.shader.fs = FFImage.YUV_RGB_FS
+                fbo['tex_y'] = 0
+                fbo['tex_u'] = 1
+                fbo['tex_v'] = 2
+                self._texture = fbo.texture
+            else:
+                self._texture = Texture.create(
+                    size=self.size, colorfmt=FFImage.fmt_conversion[fmt])
+
+            # XXX FIXME
+            # self.texture.add_reload_observer(self.reload_buffer)
+            self._texture.flip_vertical()
+
+        if self._texture is not None:
+            if fmt == 'yuv420p':
+                dy, du, dv, _ = img.to_memoryview()
+                self._tex_y.blit_buffer(dy, colorfmt='luminance')
+                self._tex_u.blit_buffer(du, colorfmt='luminance')
+                self._tex_v.blit_buffer(dv, colorfmt='luminance')
+                self._fbo.ask_update()
+                self._fbo.draw()
+            else:
+                self._texture.blit_buffer(
+                    img.to_memoryview()[0],
+                    colorfmt=FFImage.fmt_conversion[fmt])
+            self.canvas.ask_update()
+
+
+class ErrorPopup(Popup):
+    pass
 
 Factory.register('VirtualSwitch', cls=VirtualSwitch)

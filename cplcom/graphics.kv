@@ -1,9 +1,10 @@
+#@PydevCodeAnalysisIgnore
+
 
 # a icon widget with a label
 <LabeledIcon>:
     size_hint: None, None
     size: max(self.icon_size[0], self.max_width), self.icon_size[1] + self.text_height
-    text: ''
     max_width: 50
     text_height: 62
     background_down: 'green-led-on-th.png'
@@ -28,3 +29,29 @@
         halign: root.halign
         strip: True
         font_size: '11dp'
+
+
+<FFImage>:
+    size_hint: None, None
+    canvas:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            texture: self._texture
+            pos: self.pos
+            size: self.size
+
+
+<ErrorPopup>:
+    title: 'Message'
+    size_hint: None, None
+    height: min(self.parent.height if self.parent else 0, 600)
+    width: min(self.parent.width if self.parent else 0, 800)
+    ScrollView:
+        scroll_type: ['bars']
+        bar_width: 10
+        Label:
+            size_hint_y: None
+            height: self.texture_size[1]
+            text_size: self.width, None
+            text: app.exception_value
