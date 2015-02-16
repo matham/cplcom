@@ -12,7 +12,7 @@ from moa.threads import ScheduledEventLoop
 from cplcom.device import DeviceStageInterface
 
 
-class RTVChan(ButtonChannel, ScheduledEventLoop, DeviceStageInterface):
+class RTVChan(DeviceStageInterface, ButtonChannel, ScheduledEventLoop):
     '''Device used when using the barst ftdi odor devices.
     '''
 
@@ -38,7 +38,7 @@ class RTVChan(ButtonChannel, ScheduledEventLoop, DeviceStageInterface):
         video_fmt = self.output_video_fmt
         self.target = RTVChannel(
             chan=n, server=server.target, video_fmt=video_fmt,
-            frame_fmt=frame_fmt, luma_filt=frame_fmt == 'gray', lossless=True)
+            frame_fmt=str(frame_fmt), luma_filt=frame_fmt == 'gray', lossless=True)
         self.rate = (2997, 100)
         self.size = {
             'full_NTSC': (640, 480), 'full_PAL': (768, 576),
@@ -49,6 +49,7 @@ class RTVChan(ButtonChannel, ScheduledEventLoop, DeviceStageInterface):
         self.target.open_channel()
 
     def stop_channel(self, *largs, **kwargs):
+        self.target.set_state(False, flush=True)
         self.target.close_channel_server()
 
     def _post_read(self, result):
@@ -58,54 +59,40 @@ class RTVChan(ButtonChannel, ScheduledEventLoop, DeviceStageInterface):
         self.callback(img, result[0])
 
     def _set_state(self, state):
-        if not state:
-            if self._state_event is not None or self._read_event is not None:
-                try:
-                    self.target.set_state(False, flush=True)
-                except:
-                    pass
-                self.remove_request('read', self._read_event)
-                self.remove_request('set_state', self._state_event)
-                self._state_event = None
-                self.target.set_state(True)
-                self._read_event = self.request_callback(
-                    'read', callback=self._post_read, repeat=True,
-                    cls_method=False)
-            else:
-                self.target.set_state(False, flush=True)
-            self._state_event_off = None
-        else:
-            try:
-                self.target.set_state(False, flush=True)
-            except:
-                pass
+        self.target.set_state(False, flush=True)
+        self._state_event_off = None
+        if state:
             if self._state_event_off is not None:
                 self.remove_request('read', self._read_event)
-                self.remove_request('set_state', self._state_event_off)
+                self.remove_request('_set_state', self._state_event_off)
                 self._state_event_off = self._state_event = None
                 self._read_event = None
             else:
+                self.target.set_state(True)
                 self._state_event = None
                 self._read_event = self.request_callback(
                     'read', callback=self._post_read, repeat=True,
                     cls_method=False)
-
-        self._state_event = None
-        self.target.set_state(True)
-        self._read_event = self.request_callback(
-            'read', callback=self._post_read, repeat=True, cls_method=False)
+        elif self._state_event is not None or self._read_event is not None:
+            self.remove_request('read', self._read_event)
+            self.remove_request('_set_state', self._state_event)
+            self._state_event = None
+            self.target.set_state(True)
+            self._read_event = self.request_callback(
+                'read', callback=self._post_read, repeat=True,
+                cls_method=False)
 
     def set_state(self, state, **kwargs):
         if state == self.state:
             return
         if state:
-            self.remove_request('set_state', self._state_event_off)
+            self.remove_request('_set_state', self._state_event_off)
             self._state_event_off = None
             self._state_event = self.request_callback(
                 '_set_state', cls_method=True, state=True)
         else:
             self.remove_request('read', self._read_event)
-            self.remove_request('set_state', self._state_event)
+            self.remove_request('_set_state', self._state_event)
             self._read_event = None
             self._state_event = None
             self._state_event_off = self.request_callback(

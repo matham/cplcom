@@ -12,7 +12,8 @@ class MCDAQDevice(ButtonViewPort, ScheduledEventLoop):
     _read_event = None
 
     def __init__(self, **kwargs):
-        super(MCDAQDevice, self).__init__(cls_method=False, **kwargs)
+        super(MCDAQDevice, self).__init__(**kwargs)
+        self.cls_method = False
 
         def write_callback(result, kw_in):
             value = kw_in['value']

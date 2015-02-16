@@ -32,7 +32,8 @@ class MFC(ScheduledEventLoop, AnalogChannel):
     _rate_pat = None
 
     def __init__(self, **kw):
-        super(MFC, self).__init__(cls_method=False, **kw)
+        super(MFC, self).__init__(**kw)
+        self.cls_method = False
         self.target = SerialChannel(server=self.server,
             port_name=self.mfc_port_name, max_write=96, max_read=96,
             baud_rate=9600, stop_bits=1, parity='none', byte_size=8)

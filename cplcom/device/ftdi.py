@@ -18,7 +18,7 @@ from cplcom.device import DeviceStageInterface
 from cplcom import device_config_name
 
 
-class FTDIDevChannel(MoaBase, ScheduledEventLoop, DeviceStageInterface):
+class FTDIDevChannel(MoaBase, DeviceStageInterface, ScheduledEventLoop):
     '''FTDI channel device. This controls internally both the odor
     and ftdi pin devices.
     '''
@@ -67,7 +67,7 @@ class FTDIDevChannel(MoaBase, ScheduledEventLoop, DeviceStageInterface):
 
 
 class FTDISerializerDevice(
-        ButtonViewPort, ScheduledEventLoop, DeviceStageInterface):
+        ButtonViewPort, DeviceStageInterface, ScheduledEventLoop):
 
     _read_event = None
     ''' Because we cannot control the order in which the scheduling thread
@@ -77,7 +77,8 @@ class FTDISerializerDevice(
     '''
 
     def __init__(self, **kwargs):
-        super(FTDISerializerDevice, self).__init__(cls_method=False, **kwargs)
+        super(FTDISerializerDevice, self).__init__(**kwargs)
+        self.cls_method = False
 
         def write_callback(result, kw_in):
             high = kw_in['set_high']
@@ -196,12 +197,13 @@ class FTDISerializerDevice(
     idx = NumericProperty(0)
 
 
-class FTDIPinDevice(ButtonViewPort, ScheduledEventLoop, DeviceStageInterface):
+class FTDIPinDevice(ButtonViewPort, DeviceStageInterface, ScheduledEventLoop):
 
     _read_event = None
 
     def __init__(self, **kwargs):
-        super(FTDIPinDevice, self).__init__(cls_method=False, **kwargs)
+        super(FTDIPinDevice, self).__init__(**kwargs)
+        self.cls_method = False
 
         def write_callback(result, kw_in):
             _, value, mask = kw_in['data'][0]
@@ -299,7 +301,8 @@ class FTDIADCDevice(ADCPort, ScheduledEventLoop):
     _state_event = None
 
     def __init__(self, **kwargs):
-        super(FTDIADCDevice, self).__init__(cls_method=False, **kwargs)
+        super(FTDIADCDevice, self).__init__(**kwargs)
+        self.cls_method = False
         self.num_channels = 2
         self.raw_data = [None, None]
         self.data = [None, None]

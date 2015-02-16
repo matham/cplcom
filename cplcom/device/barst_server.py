@@ -1,3 +1,4 @@
+import time
 
 from pybarst.core.server import BarstServer
 
@@ -11,7 +12,7 @@ from cplcom import device_config_name
 from cplcom.device import DeviceStageInterface
 
 
-class Server(MoaBase, ScheduledEventLoop, DeviceStageInterface):
+class Server(DeviceStageInterface, MoaBase, ScheduledEventLoop):
     '''Server device which creates and opens the Barst server.
     '''
 
@@ -23,6 +24,12 @@ class Server(MoaBase, ScheduledEventLoop, DeviceStageInterface):
 
     def start_channel(self):
         server = self.target
+        try:
+            server.close_server()
+            # XXX: fix server to wait out
+            time.sleep(1.)
+        except:
+            pass
         server.open_server()
 
     def stop_channel(self, *largs, **kwargs):
