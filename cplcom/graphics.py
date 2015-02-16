@@ -4,18 +4,23 @@ __all__ = ('VirtualSwitch', )
 
 import math
 from os.path import join, dirname
+from time import clock
 
 from kivy.uix.widget import Widget
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.behaviors import ToggleButtonBehavior
 from kivy.uix.popup import Popup
 from kivy.lang import Factory, Builder
 from kivy.properties import (
-        ObjectProperty, StringProperty, NumericProperty, BooleanProperty)
+    ObjectProperty, StringProperty, NumericProperty, BooleanProperty,
+    ListProperty)
 from kivy.clock import Clock
 from kivy.graphics import Rectangle, BindTexture
 from kivy.graphics.texture import Texture
 from kivy.graphics.fbo import Fbo
+
+from cplcom.utils import pretty_time
 
 
 Builder.load_file(join(dirname(__file__), 'graphics.kv'))
@@ -209,6 +214,89 @@ class FFImage(Widget):
                     img.to_memoryview()[0],
                     colorfmt=FFImage.fmt_conversion[fmt])
             self.canvas.ask_update()
+
+
+class TimeLineSlice(Widget):
+
+    end_t = NumericProperty(0)
+
+    elapsed_t = NumericProperty(0)
+
+    start_t = NumericProperty(0)
+
+    color = ObjectProperty((1, 1, 1))
+
+    color_odd = ObjectProperty((0, .7, .2))
+
+    color_even = ObjectProperty((0, .2, .7))
+
+    text = StringProperty('')
+
+    parent = ObjectProperty(None, allownone=True, rebind=True)
+
+
+class TimeLine(Widget):
+
+    range = NumericProperty(1)
+
+    slices = ListProperty([])
+
+    slice_names = ListProperty([])
+
+    current_slice = NumericProperty(0)
+
+    offset = NumericProperty(0)
+
+    timer = StringProperty('')
+
+    text = StringProperty('')
+
+    scale = NumericProperty(0)
+
+    start_t = NumericProperty(clock())
+
+    def __init__(self, **kwargs):
+        super(TimeLine, self).__init__(**kwargs)
+        Clock.schedule_interval(self.update_clock, .15)
+
+    def update_clock(self, dt):
+        elapsed = clock() - self.start_t
+        self.timer = pretty_time(elapsed)
+        if self.slices:
+            self.slices[self.current_slice].elapsed_t = elapsed
+
+    def set_active_slice(self, idx):
+        for s in self.slices[:idx]:
+            s.elapsed_t = s.end_t - s.start_t
+        for s in self.slices[idx:]:
+            s.elapsed_t = 0.
+        self.current_slice = idx
+        self.start_t = clock()
+        if self.slices:
+            self.text = self.slices[idx].text
+        else:
+            self.text = 'Init'
+
+    def update_slice_time(self, idx, duration):
+        s0 = self.slices[idx]
+        ts = s0.start_t
+        for s in self.slices[idx:]:
+            if s != s0:
+                duration = s.end_t - s.start_t
+            s.start_t = ts
+            ts = s.end_t = ts + duration
+
+    def update_slices(self, end_times, text):
+        for ch in self.children[:-1]:
+            self.remove_widget(ch)
+        self.slices = []
+        ts = 0
+        slices = self.slices
+        for t, txt in zip(end_times, text):
+            slices.append(TimeLineSlice(start_t=ts, end_t=t, text=txt))
+            ts = t
+        for s in slices:
+            self.add_widget(s)
 
 
 class ErrorPopup(Popup):
