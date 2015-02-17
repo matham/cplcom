@@ -226,9 +226,15 @@ class TimeLineSlice(Widget):
 
     color = ObjectProperty((1, 1, 1))
 
+    color_dark = ObjectProperty((1, 1, 1))
+
     color_odd = ObjectProperty((0, .7, .2))
 
+    color_odd_dark = ObjectProperty((.5, .5, 0))
+
     color_even = ObjectProperty((0, .2, .7))
+
+    color_even_dark = ObjectProperty((135 / 255., 206 / 255., 250 / 255.))
 
     text = StringProperty('')
 
