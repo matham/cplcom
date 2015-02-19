@@ -43,42 +43,41 @@
 
 
 <TimeLineSlice>:
-    color: (self.color_odd if self.parent.children.index(self) % 2 else self.color_even) if self.parent and self in self.parent.children else (1, 1, 1, 1)
-    color_dark: (self.color_odd_dark if self.parent.children.index(self) % 2 else self.color_even_dark) if self.parent and self in self.parent.children else (1, 1, 1, 1)
-    pos: (self.parent.offset + self.start_t * self.parent.scale, self.parent.y) if self.parent else (0, 0)
-    size: ((self.end_t - self.start_t) * self.parent.scale, self.parent.height) if self.parent else (0, 0)
+    scale: (self.width / self.duration) if self.duration else 10000
     bar_height: 20
     canvas:
         Color:
-            rgb: self.color
-            a: 1.
+            rgba: self.color[0] if self.color is not None else self._color[0]
         Rectangle:
-            pos: (self.x, self.center[1] - self.bar_height / 2.0) if self.parent else (0, 0)
-            size: (min(self.width, self.elapsed_t * self.parent.scale), self.bar_height) if self.parent else (0, 0)
+            pos: self.x, self.center[1] - self.bar_height / 2.0
+            size: min(self.width, self.elapsed_t * self.scale), self.bar_height
         Color:
-            rgb: self.color_dark
-            a: 1
+            rgba: self.color[1] if self.color is not None else self._color[1]
         Rectangle:
-            pos: (min(self.right, self.parent.offset + (self.start_t + self.elapsed_t) * self.parent.scale), self.center[1] - self.bar_height / 2.0) if self.parent else (0, 0)
-            size: (max(0, (self.end_t - self.elapsed_t - self.start_t) * self.parent.scale), self.bar_height) if self.parent else (0, 0)
+            pos: self.x + min(self.width, self.elapsed_t * self.scale), self.center[1] - self.bar_height / 2.0
+            size: max(0, self.width - (min(self.width, self.elapsed_t * self.scale))), self.bar_height
     Label:
-        x: (max(root.parent.offset, root.center[0] - self.width / 2.)) if root.parent else 0
-        y: (root.parent.y if root.parent.children.index(root) % 2 else root.top - self.height) if root.parent and root in root.parent.children else 0
-        size: self.texture_size
-        text: root.text if root.size[0] else ''
+        x: root.x
+        y: root.top - self.height
+        size: root.width, (root.height - root.bar_height ) / 2.
+        text_size: self.size
+        text: root.name if root.size[0] else ''
+        shorten: True
+        halign: 'center'
+        valign: 'middle'
 
 
 <TimeLine>:
     size_hint_y: None
     height: 80
-    offset: self.x + timer.width + 20
-    scale: (self.right - self.offset) / self.range
+    box: box
     canvas:
         Color:
             rgba: 1, 1, 1, 1
     GridLayout:
         cols: 1
         width: 125
+        size_hint: None, None
         size: max(max(timer.texture_size[0], state.texture_size[0]), self.width), root.height
         pos: root.pos
         Label:
@@ -87,7 +86,7 @@
             bold: True
             font_size: '22sp'
             color: .1, .9, .1
-            text: root.text
+            text: root.slice_names[root.current_slice] if root.current_slice is not None and root.current_slice < len(root.slice_names) else root.text
         Label:
             id: timer
             markup: True
@@ -95,6 +94,8 @@
             font_size: '22sp'
             color: .9, .1, .1
             text: root.timer
+    BoxLayout:
+        id: box
 
 
 

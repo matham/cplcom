@@ -2,16 +2,14 @@
 __all__ = ('VirtualSwitch', )
 
 
-import math
 from os.path import join, dirname
 from time import clock
+from math import pow
 
 from kivy.uix.widget import Widget
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.behaviors import ToggleButtonBehavior
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
-from kivy.lang import Factory, Builder
+from kivy.lang import Builder
 from kivy.properties import (
     ObjectProperty, StringProperty, NumericProperty, BooleanProperty,
     ListProperty)
@@ -29,114 +27,6 @@ Builder.load_file(join(dirname(__file__), 'graphics.kv'))
 class LabeledIcon(Widget):
 
     text = StringProperty('')
-
-
-class VirtualSwitch(object):
-    '''Requires it be combined with class that has a state property.
-    '''
-
-    def __init__(self, **kw):
-        super(VirtualSwitch, self).__init__(**kw)
-        Clock.schedule_once(self._bind_button)
-
-    def _bind_button(self, *largs):
-        if (not self.read_only and not self.virtual):
-            self.bind(state=self.update_from_button)
-
-    dev = ObjectProperty(None, allownone=True)
-
-    _dev = None
-
-    chan_name = StringProperty('state')
-
-    read_only = BooleanProperty(False)
-    '''Whether pressing the button will change the device state (False) or
-    if the device only updates the button.
-    '''
-
-    virtual = BooleanProperty(False)
-    '''If it's backed up by a button. Similar to app.simulate, but even if
-    that's false it could be kivy button backed.
-    '''
-
-    is_port = BooleanProperty(True)
-
-    _last_chan_value = None
-
-    def on_dev(self, *largs):
-        if self._dev:
-            self._dev.unbind(**{self.chan_name: self.update_from_channel})
-        self._dev = self.dev
-        if (self.dev and not self.virtual):
-            self.dev.bind(**{self.chan_name: self.update_from_channel})
-
-    def update_from_channel(self, *largs):
-        '''A convenience method which takes the state of the simulated device
-        (buttons) and the state of the actual device and returns if the
-        simulated device should be `'down'` or `'normal'`.
-
-        It is used to set the button state to match the actual device state,
-        if not simulating.
-        '''
-
-        self._last_chan_value = state = getattr(self.dev, self.chan_name)
-        self.state = 'down' if state else 'normal'
-        self._last_chan_value = None
-
-    def update_from_button(self, *largs):
-        '''A convenience method which takes the state of the simulated device
-        (buttons) and sets the state of the actual device to match it when not
-        simulating.
-        '''
-        dev = self.dev
-        if dev is not None:
-            if self.state == 'down':
-                if self._last_chan_value is not True:
-                    self._last_chan_value = None
-                    if self.is_port:
-                        dev.set_state(high=[self.chan_name])
-                    else:
-                        dev.set_state(True)
-            else:
-                if self._last_chan_value is not False:
-                    self._last_chan_value = None
-                    if self.is_port:
-                        dev.set_state(low=[self.chan_name])
-                    else:
-                        dev.set_state(False)
-
-
-class ToggleSwitch(ToggleButtonBehavior, VirtualSwitch, LabeledIcon):
-    pass
-
-
-class PortSwitch(ToggleSwitch):
-    pass
-
-
-class DarkPortSwitch(PortSwitch):
-    pass
-
-
-class PortContainer(GridLayout):
-
-    num_devs = NumericProperty(8)
-
-    name_pat = StringProperty('p{}')
-
-    def __init__(self, **kwargs):
-        super(PortContainer, self).__init__(**kwargs)
-        if '__no_builder' in kwargs:
-            Clock.schedule_once(self.populate_devs)
-        else:
-            self.populate_devs()
-
-    def populate_devs(self, *largs):
-        classes = [PortSwitch, DarkPortSwitch] * int(
-            math.ceil(self.num_devs / 2.))
-        pat = self.name_pat
-        for i, cls in enumerate(classes):
-            self.add_widget(cls(chan_name=pat.format(i)))
 
 
 class FFImage(Widget):
@@ -218,94 +108,118 @@ class FFImage(Widget):
 
 class TimeLineSlice(Widget):
 
-    end_t = NumericProperty(0)
+    duration = NumericProperty(0)
 
     elapsed_t = NumericProperty(0)
 
-    start_t = NumericProperty(0)
+    scale = NumericProperty(0)
 
-    color = ObjectProperty((1, 1, 1))
+    color = ObjectProperty(None, allownone=True)
 
-    color_dark = ObjectProperty((1, 1, 1))
+    _color = ListProperty([(1, 1, 1, 1), (1, 1, 1, 1)])
 
-    color_odd = ObjectProperty((0, .7, .2))
-
-    color_odd_dark = ObjectProperty((.5, .5, 0))
-
-    color_even = ObjectProperty((0, .2, .7))
-
-    color_even_dark = ObjectProperty((135 / 255., 206 / 255., 250 / 255.))
-
-    text = StringProperty('')
+    name = StringProperty('')
 
     parent = ObjectProperty(None, allownone=True, rebind=True)
 
 
-class TimeLine(Widget):
-
-    range = NumericProperty(1)
+class TimeLine(BoxLayout):
 
     slices = ListProperty([])
 
     slice_names = ListProperty([])
 
-    current_slice = NumericProperty(0)
-
-    offset = NumericProperty(0)
+    current_slice = NumericProperty(None, allownone=True)
 
     timer = StringProperty('')
 
     text = StringProperty('')
 
-    scale = NumericProperty(0)
+    color_odd = ListProperty([(0, .7, .2, 1), (.5, .5, 0, 1)])
 
-    start_t = NumericProperty(clock())
+    color_even = ListProperty(
+        [(0, .2, .7, 1), (135 / 255., 206 / 255., 250 / 255., 1)])
+
+    _start_t = clock()
 
     def __init__(self, **kwargs):
         super(TimeLine, self).__init__(**kwargs)
         Clock.schedule_interval(self.update_clock, .15)
 
     def update_clock(self, dt):
-        elapsed = clock() - self.start_t
+        elapsed = clock() - self._start_t
         self.timer = pretty_time(elapsed)
-        if self.slices:
+        if self.slices and self.current_slice is not None:
             self.slices[self.current_slice].elapsed_t = elapsed
 
-    def set_active_slice(self, idx):
-        for s in self.slices[:idx]:
-            s.elapsed_t = s.end_t - s.start_t
-        for s in self.slices[idx:]:
-            s.elapsed_t = 0.
-        self.current_slice = idx
-        self.start_t = clock()
-        if self.slices:
-            self.text = self.slices[idx].text
-        else:
-            self.text = 'Init'
+    def set_active_slice(self, name):
+        try:
+            idx = self.slice_names.index(name)
+            for s in self.slices[:idx]:
+                s.elapsed_t = max(s.duration, 10000)
+            for s in self.slices[idx:]:
+                s.elapsed_t = 0.
+            self.current_slice = idx
+        except ValueError:
+            if self.current_slice is not None:
+                for s in self.slices[:self.current_slice + 1]:
+                    s.elapsed_t = max(s.duration, 10000)
+            self.current_slice = None
+            self.text = name
+        self._start_t = clock()
 
-    def update_slice_time(self, idx, duration):
-        s0 = self.slices[idx]
-        ts = s0.start_t
-        for s in self.slices[idx:]:
-            if s != s0:
-                duration = s.end_t - s.start_t
-            s.start_t = ts
-            ts = s.end_t = ts + duration
-
-    def update_slices(self, end_times, text):
-        for ch in self.children[:-1]:
-            self.remove_widget(ch)
+    def clear_slices(self):
+        for ch in self.box.children:
+            self.box.remove_widget(ch)
+        self.current_slice = None
+        self.slice_names = []
         self.slices = []
-        ts = 0
-        slices = self.slices
-        for t, txt in zip(end_times, text):
-            slices.append(TimeLineSlice(start_t=ts, end_t=t, text=txt))
-            ts = t
-        for s in slices:
-            self.add_widget(s)
+
+    def update_slice_attrs(self, name, **kwargs):
+        s = self.slices[self.slice_names.index(name)]
+        for key, val in kwargs.items():
+            setattr(s, key, val)
+        self._update_attrs()
+
+    def _update_attrs(self):
+        widgets = list(reversed(self.box.children))
+        self.slice_names = [widget.name for widget in widgets]
+        for i, wid in enumerate(widgets):
+            wid._color = self.color_odd if i % 2 else self.color_even
+
+    def add_slice(
+            self, name, before=None, duration=0, size_hint_x=None, **kwargs):
+        s = TimeLineSlice(
+            duration=duration, name=name,
+            size_hint_x=size_hint_x if size_hint_x is not None else duration,
+            **kwargs)
+        if before is not None:
+            i = self.slice_names.index(before)
+            old_len = len(self.slices)
+            self.slices.insert(s, i)
+            i = old_len - i
+        else:
+            self.slices.append(s)
+            i = 0
+        self.box.add_widget(s, index=i)
+        self._update_attrs()
+
+    def remove_slice(self, name):
+        s = self.slices.pop(self.slice_names.index(name))
+        self.box.remove_widget(s)
+        self._update_attrs()
+
+    def smear_slices(self):
+        widgets = self.box.children
+        vals = [w.duration for w in widgets if w.duration]
+        mn, mx = min(vals), max(vals)
+        center = (mn + mx) / 2.
+        a = pow(mx - center, 3)
+        offset = abs(pow(mn - center, 3) / a)
+        f = lambda x: max((2 * pow(x - center, 3) / a) + offset, offset)
+        for w in widgets:
+            w.size_hint_x = f(w.duration)
 
 
 class ErrorPopup(Popup):
     pass
-
-Factory.register('VirtualSwitch', cls=VirtualSwitch)
