@@ -22,6 +22,7 @@ from kivy.modules import inspector
 from kivy.core.window import Window
 from kivy.animation import Sequence, Animation
 from kivy.resources import resource_add_path
+from kivy.lang import Factory
 
 from moa.app import MoaApp
 from moa.compat import unicode_type
@@ -71,7 +72,7 @@ class ExperimentApp(MoaApp):
     if changing while the experiment is stopped.
     '''
 
-    exp_config_path = ConfigParserProperty('experiment.ini', 'Experiment',
+    exp_config_path = ConfigParserProperty('', 'Experiment',
         'exp_config_path', device_config_name, val_type=unicode_type)
     '''The path to the config file used with :attr:`experiment_configparser`.
 
@@ -113,7 +114,11 @@ class ExperimentApp(MoaApp):
         self.recovery_directory = self.recovery_path
         resource_add_path(join(dirname(dirname(__file__)), 'media'))
 
-    def build(self, root=None):
+    def build(self, root_cls=None):
+        if root_cls is None:
+            root = Factory.get('MainView')()
+        else:
+            root = root_cls()
         self.err_popup = ErrorPopup()
         self.popup_anim = Sequence(Animation(t='in_bounce', warn_alpha=1.),
                                    Animation(t='out_bounce', warn_alpha=0))
@@ -122,7 +127,7 @@ class ExperimentApp(MoaApp):
             inspector.create_inspector(Window, root)
         return root
 
-    def start_stage(self, root_cls, restart=False):
+    def start_stage(self, root_cls=None, restart=False):
         '''Called to start the experiment. If restart is True, it'll try to
         recover the experiment using :attr:`recovery_file`.
 
@@ -132,15 +137,9 @@ class ExperimentApp(MoaApp):
         try:
             self.barst_stage = None
             self.app_state = 'running'
-            #root = self.base_stage
             self.base_stage = None
-#             if root is not None:
-#                 def clear_name(stage):
-#                     stage.name = ''
-#                     for child in stage.stages:
-#                         clear_name(child)
-#                 clear_name(root)
 
+            old_exp_path = self.exp_config_path
             parser = self.dev_configparser
             config_path = resources.resource_find('config.ini')
             if parser is None:
@@ -154,6 +153,8 @@ class ExperimentApp(MoaApp):
                     pass
             parser.read(config_path)
             parser.write()
+            if old_exp_path:
+                self.exp_config_path = old_exp_path
 
             parser = self.experiment_configparser
             config_path = resources.resource_find(self.exp_config_path)
@@ -168,7 +169,10 @@ class ExperimentApp(MoaApp):
             parser.read(config_path)
             parser.write()
 
-            root = self.base_stage = root_cls()
+            if root_cls is None:
+                root = self.base_stage = Factory.get('RootStage')()
+            else:
+                root = self.base_stage = root_cls()
         except Exception as e:
             self.exception_value = '{}\n\n\n{}'.format(e,
                                                        traceback.format_exc())
