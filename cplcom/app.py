@@ -93,11 +93,6 @@ class ExperimentApp(MoaApp):
     '''Contains the animation used to display that an error exists.
     '''
 
-    base_stage = ObjectProperty(None, allownone=True, rebind=True)
-    '''The instance of the :class:`RootStage`. This is the experiment's
-    root stage.
-    '''
-
     next_animal_btn = ObjectProperty(None, rebind=True)
     '''The button that is pressed when the we should do the next animal.
     '''
@@ -137,7 +132,7 @@ class ExperimentApp(MoaApp):
         try:
             self.barst_stage = None
             self.app_state = 'running'
-            self.base_stage = None
+            self.root_stage = None
 
             old_exp_path = self.exp_config_path
             parser = self.dev_configparser
@@ -170,9 +165,9 @@ class ExperimentApp(MoaApp):
             parser.write()
 
             if root_cls is None:
-                root = self.base_stage = Factory.get('RootStage')()
+                root = self.root_stage = Factory.get('RootStage')()
             else:
-                root = self.base_stage = root_cls()
+                root = self.root_stage = root_cls()
         except Exception as e:
             self.exception_value = '{}\n\n\n{}'.format(e,
                                                        traceback.format_exc())
@@ -202,7 +197,7 @@ class ExperimentApp(MoaApp):
         self.exception_value = '{}\n\n\n{}'.format(exception, traceback)
         Logger.exception(self.exception_value)
 
-        root = self.base_stage
+        root = self.root_stage
         if root is not None and self.recovery_directory:
             self.recovery_file = self.dump_attributes(
                 prefix='experiment_', stage=root)
@@ -220,6 +215,6 @@ def run_app(cls):
     except Exception as e:
         app.device_exception((e, traceback.format_exc()))
 
-    root = app.base_stage
+    root = app.root_stage
     if root:
         root.stop()
