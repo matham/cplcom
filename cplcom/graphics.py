@@ -120,6 +120,8 @@ class TimeLineSlice(Widget):
 
     name = StringProperty('')
 
+    text = StringProperty('')
+
     parent = ObjectProperty(None, allownone=True, rebind=True)
 
 
@@ -189,6 +191,8 @@ class TimeLine(BoxLayout):
 
     def add_slice(
             self, name, before=None, duration=0, size_hint_x=None, **kwargs):
+        if 'text' not in kwargs:
+            kwargs['text'] = name
         s = TimeLineSlice(
             duration=duration, name=name,
             size_hint_x=size_hint_x if size_hint_x is not None else duration,

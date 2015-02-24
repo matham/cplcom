@@ -197,7 +197,7 @@
             background_normal: 'pause.png'
             icon_size: 48, 48
             on_press:
-                app.base_stage is not None and (app.base_stage.unpause() if self.state == 'normal' else app.base_stage.pause())
+                app.root_stage is not None and (app.root_stage.unpause() if self.state == 'normal' else app.root_stage.pause())
                 app.app_state =  'running' if self.state == 'normal' else 'paused'
             disabled: app.app_state != 'running' and app.app_state != 'paused'
     Widget:
@@ -212,5 +212,5 @@
             background_down: 'stop_0.png'
             background_normal: 'stop_1.png'
             icon_size: 48, 48
-            on_press: app.base_stage and app.base_stage.stop()
+            on_press: app.root_stage and app.root_stage.stop()
             disabled: app.app_state != 'running'
