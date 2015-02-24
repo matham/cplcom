@@ -2,12 +2,19 @@
 
 __all__ = ('MCDAQDevice', )
 
+from pybarst.mcdaq import MCDAQChannel
+
+from kivy.properties import NumericProperty
 
 from moa.threads import ScheduledEventLoop
 from moa.device.digital import ButtonViewPort
+from moa.utils import ConfigPropertyList
+
+from cplcom.device import DeviceStageInterface
+from cplcom import device_config_name
 
 
-class MCDAQDevice(ButtonViewPort, ScheduledEventLoop):
+class MCDAQDevice(DeviceStageInterface, ButtonViewPort, ScheduledEventLoop):
 
     _read_event = None
 
@@ -34,6 +41,21 @@ class MCDAQDevice(ButtonViewPort, ScheduledEventLoop):
             self.dispatch('on_data_update', self)
         self.request_callback(
             name='read', callback=read_callback, trigger=False, repeat=True)
+
+    def create_device(self, server, *largs, **kwargs):
+        self.target = MCDAQChannel(chan=self.SAS_chan[self.idx], server=server)
+
+    def start_channel(self):
+        target = self.target
+        target.open_channel()
+        target.close_channel_server()
+        target.open_channel()
+        if 'o' in self.direction:
+            target.write(mask=0xFF, value=0)
+
+    def stop_channel(self, *largs, **kwargs):
+        if 'o' in self.direction:
+            self.target.write(mask=0xFF, value=0)
 
     def set_state(self, high=[], low=[], **kwargs):
         if self.activation != 'active':
@@ -90,3 +112,14 @@ class MCDAQDevice(ButtonViewPort, ScheduledEventLoop):
         else:
             self.activation = 'inactive'
         return True
+
+    SAS_chan = ConfigPropertyList(
+        0, 'Switch_and_Sense_8_8', 'channel_number', device_config_name,
+        val_type=int, autofill=False)
+    '''`channel_number`, the channel number of the Switch & Sense 8/8 as
+    configured in InstaCal.
+
+    Defaults to zero.
+    '''
+
+    idx = NumericProperty(0)

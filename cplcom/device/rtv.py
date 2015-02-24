@@ -13,8 +13,6 @@ from cplcom.device import DeviceStageInterface
 
 
 class RTVChan(DeviceStageInterface, ButtonChannel, ScheduledEventLoop):
-    '''Device used when using the barst ftdi odor devices.
-    '''
 
     _read_event = None
     _state_event = None

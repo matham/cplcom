@@ -9,24 +9,33 @@ from kivy.properties import ObjectProperty, StringProperty, NumericProperty
 from pybarst.serial import SerialChannel
 
 from moa.threads import ScheduledEventLoop
-from moa.device.analog import AnalogChannel
+from moa.device.analog import NumericPropertyViewChannel
+from moa.utils import ConfigPropertyList
+
+from cplcom.device import DeviceStageInterface
+from cplcom import device_config_name
 
 
-class MFC(ScheduledEventLoop, AnalogChannel):
+class MFC(
+        DeviceStageInterface, NumericPropertyViewChannel, ScheduledEventLoop):
 
-    mfc_port_name = StringProperty('')
+    port_name = ConfigPropertyList(
+        '', 'MFC', 'port_name', device_config_name, val_type=str,
+        autofill=False)
     '''The COM port name of the MFC, e.g. COM3.
     '''
 
-    mfc_id = NumericProperty(0)
+    mfc_id = ConfigPropertyList(
+        0, 'MFC', 'mfc_id', device_config_name, val_type=int,
+        autofill=False)
     '''The MFC assigned number used to communicate with that MFC.
     '''
 
-    server = ObjectProperty(None)
-    '''The barst server used with the serial channel.
-    '''
+    idx = NumericProperty(0)
 
     mfc_timeout = 4000
+
+    _mfc_id = 0
 
     _read_event = None
     _rate_pat = None
@@ -34,15 +43,19 @@ class MFC(ScheduledEventLoop, AnalogChannel):
     def __init__(self, **kw):
         super(MFC, self).__init__(**kw)
         self.cls_method = False
-        self.target = SerialChannel(server=self.server,
-            port_name=self.mfc_port_name, max_write=96, max_read=96,
-            baud_rate=9600, stop_bits=1, parity='none', byte_size=8)
-        self._rate_pat = re.compile(r'\!{:02X},([0-9\.]+)\r\n'.
-                                    format(self.mfc_id))
 
-    def init_mfc(self):
+    def create_device(self, server, *largs, **kwargs):
+        self.target = SerialChannel(
+            server=server, port_name=self.port_name[self.idx], max_write=96,
+            max_read=96, baud_rate=9600, stop_bits=1, parity='none',
+            byte_size=8)
+        self._mfc_id = self.mfc_id[self.idx]
+        self._rate_pat = re.compile(
+            r'\!{:02X},([0-9\.]+)\r\n'.format(self._mfc_id))
+
+    def start_channel(self, *largs, **kwargs):
         mfc = self.target
-        n = self.mfc_id
+        n = self._mfc_id
         to = self.mfc_timeout
         mfc.open_channel()
 
@@ -63,9 +76,12 @@ class MFC(ScheduledEventLoop, AnalogChannel):
                             'Expected "{}", got "{}"'.format(units_out, val))
         self.set_mfc_rate(0)
 
+    def stop_channel(self, *largs, **kwargs):
+        self.set_mfc_rate(0)
+
     def set_mfc_rate(self, val):
         mfc = self.target
-        n = self.mfc_id
+        n = self._mfc_id
         to = self.mfc_timeout
 
         mfc.write('!{:02X},S,{:.3f}\r\n'.format(n, val), to)
@@ -77,7 +93,7 @@ class MFC(ScheduledEventLoop, AnalogChannel):
 
     def get_mfc_rate(self):
         mfc = self.target
-        n = self.mfc_id
+        n = self._mfc_id
         to = self.mfc_timeout
 
         mfc.write('!{:02X},F\r\n'.format(n), to)
@@ -100,8 +116,9 @@ class MFC(ScheduledEventLoop, AnalogChannel):
         if not super(MFC, self).activate(*largs, **kwargs):
             return False
 
-        self._read_event = self.request_callback(name='get_mfc_rate',
-            callback=self._set_state_from_mfc, repeat=True)
+        self._read_event = self.request_callback(
+            name='get_mfc_rate', callback=self._set_state_from_mfc,
+            repeat=True)
         return True
 
     def deactivate(self, *largs, **kwargs):
