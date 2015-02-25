@@ -46,9 +46,9 @@ class MFC(
 
     def create_device(self, server, *largs, **kwargs):
         self.target = SerialChannel(
-            server=server, port_name=self.port_name[self.idx], max_write=96,
-            max_read=96, baud_rate=9600, stop_bits=1, parity='none',
-            byte_size=8)
+            server=server.target, port_name=self.port_name[self.idx],
+            max_write=96, max_read=96, baud_rate=9600, stop_bits=1,
+            parity='none', byte_size=8)
         self._mfc_id = self.mfc_id[self.idx]
         self._rate_pat = re.compile(
             r'\!{:02X},([0-9\.]+)\r\n'.format(self._mfc_id))

@@ -43,7 +43,8 @@ class MCDAQDevice(DeviceStageInterface, ButtonViewPort, ScheduledEventLoop):
             name='read', callback=read_callback, trigger=False, repeat=True)
 
     def create_device(self, server, *largs, **kwargs):
-        self.target = MCDAQChannel(chan=self.SAS_chan[self.idx], server=server)
+        self.target = MCDAQChannel(chan=self.SAS_chan[self.idx],
+                                   server=server.target)
 
     def start_channel(self):
         target = self.target

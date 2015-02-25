@@ -62,7 +62,7 @@
 
 
 <TimeLineSlice>:
-    scale: (self.width / self.duration) if self.duration else 10000
+    scale: self.width / (self.duration if self.duration else 2000)
     bar_height: 20
     canvas:
         Color:
