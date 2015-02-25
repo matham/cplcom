@@ -80,7 +80,7 @@
         y: root.top - self.height
         size: root.width, (root.height - root.bar_height ) / 2.
         text_size: self.size
-        text: root.text.format(root.duration if root.duration else '') if root.size[0] else ''
+        text: str.format(root.text, root.duration if root.duration else '') if root.size[0] else ''
         shorten: True
         halign: 'center'
         valign: 'middle'

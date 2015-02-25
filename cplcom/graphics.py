@@ -171,7 +171,7 @@ class TimeLine(BoxLayout):
         self._start_t = clock()
 
     def clear_slices(self):
-        for ch in self.box.children:
+        for ch in self.box.children[:]:
             self.box.remove_widget(ch)
         self.current_slice = None
         self.slice_names = []
