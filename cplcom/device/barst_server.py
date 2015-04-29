@@ -16,6 +16,12 @@ class Server(DeviceStageInterface, MoaBase, ScheduledEventLoop):
     '''Server device which creates and opens the Barst server.
     '''
 
+    restart = True
+
+    def __init__(self, restart=True, **kwargs):
+        super(Server, self).__init__(**kwargs)
+        self.restart = restart
+
     def create_device(self):
         # create actual server
         self.target = BarstServer(
@@ -24,12 +30,13 @@ class Server(DeviceStageInterface, MoaBase, ScheduledEventLoop):
 
     def start_channel(self):
         server = self.target
-        try:
-            server.close_server()
-            # XXX: fix server to wait out
-            time.sleep(1.)
-        except:
-            pass
+        if self.restart:
+            try:
+                server.close_server()
+                # XXX: fix server to wait out
+                time.sleep(1.)
+            except:
+                pass
         server.open_server()
 
     def stop_channel(self, *largs, **kwargs):

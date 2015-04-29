@@ -51,6 +51,9 @@ class DeviceStageInterface(object):
         '''
         pass
 
+    def post_start_channel(self, *largs, **kwargs):
+        pass
+
     def stop_device(self, *largs, **kwargs):
         self.cancel_exception()
         if isinstance(self, ScheduledEventLoop):

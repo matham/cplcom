@@ -1,16 +1,23 @@
 
 import time
 from threading import Thread, Event, RLock
+from fractions import Fraction
+try:
+    from Queue import Queue
+except:
+    from queue import Queue
 
 from ffpyplayer.player import MediaPlayer
 from ffpyplayer.tools import set_log_callback, get_log_callback
+from ffpyplayer.writer import MediaWriter
 
-from kivy.properties import StringProperty, ObjectProperty
+from kivy.properties import StringProperty, ObjectProperty, NumericProperty
 from kivy.resources import resource_find
 from kivy.clock import Clock
 
 from moa.device.digital import ButtonChannel
 from moa.logger import Logger
+from moa.base import MoaBase
 
 from cplcom.device import DeviceStageInterface
 
@@ -40,7 +47,19 @@ class FFPyPlayerDevice(ButtonChannel, DeviceStageInterface):
 
     filename = StringProperty('')
 
-    output_img_fmt = StringProperty('')
+    input_img_fmt = StringProperty(None, allownone=True)
+
+    input_img_w = NumericProperty(None, allownone=True)
+
+    input_img_h = NumericProperty(None, allownone=True)
+
+    input_rate = NumericProperty(None, allownone=True)
+
+    output_img_fmt = StringProperty(None, allownone=True)
+
+    vid_fmt = StringProperty(None, allownone=True)
+
+    codec = StringProperty(None, allownone=True)
 
     callback = ObjectProperty(None)
 
@@ -65,6 +84,8 @@ class FFPyPlayerDevice(ButtonChannel, DeviceStageInterface):
         callback = self.callback
         frames = self._frame_queue[:]
         del self._frame_queue[:len(frames)]
+        if callback is None:
+            return
         for frame, pts in frames:
             callback(frame, pts)
 
@@ -124,11 +145,28 @@ class FFPyPlayerDevice(ButtonChannel, DeviceStageInterface):
 
             self.paused = True
             self._needs_exit = False
-            ff_opts = {
-                'paused': True, 'out_fmt': self.output_img_fmt,
-                'loop': 0, 'an': True}
+
+            ff_opts = {'paused': True, 'loop': 0, 'an': True}
+            if self.output_img_fmt is not None:
+                ff_opts['out_fmt'] = self.output_img_fmt
+            if self.vid_fmt is not None:
+                ff_opts['f'] = self.vid_fmt
+            if self.codec is not None:
+                ff_opts['vcodec'] = self.codec
+
+            lib_opts = {}
+            if self.vid_fmt == 'dshow':
+                if self.input_img_fmt is not None:
+                    lib_opts['pixel_format'] = self.input_img_fmt
+                h, w = self.input_img_h, self.input_img_w
+                if h is not None and w is not None:
+                    lib_opts['video_size'] = '{}x{}'.format(w, h)
+                if self.input_rate is not None:
+                    lib_opts['framerate'] = bytes(str(self.input_rate))
+
             self._ffplayer = MediaPlayer(
-                name, callback=lambda: self._player_callback, ff_opts=ff_opts)
+                name, callback=lambda: self._player_callback, ff_opts=ff_opts,
+                lib_opts=lib_opts)
             self._pause_lock = RLock()
             self._thread_event = Event()
             self._thread = Thread(
@@ -167,3 +205,52 @@ class FFPyPlayerDevice(ButtonChannel, DeviceStageInterface):
             if self.paused != (not self.state):
                 ffplayer.toggle_pause()
                 self.paused = not self.state
+
+
+class FFPyWriterDevice(MoaBase, DeviceStageInterface):
+
+    _frame_queue = None
+    _thread = None
+    _writer = None
+
+    def __init__(self, filename='', size=None, rate=1., ifmt='', ofmt=None,
+                 **kwargs):
+        super(FFPyWriterDevice, self).__init__(**kwargs)
+        self._frame_queue = Queue()
+        if ofmt is None:
+            ofmt = 'gray' if ifmt == 'gray' else 'yuv420p'
+        if isinstance(rate, (float, int)):
+            rate = Fraction(rate)
+        if isinstance(rate, Fraction):
+            rate = rate.numerator, rate.denominator
+        self._writer = MediaWriter(
+            filename, [{
+                'pix_fmt_in': ifmt, 'width_in': size[0], 'height_in': size[1],
+                'codec':'rawvideo', 'frame_rate': rate, 'pix_fmt_out': ofmt}])
+        self._thread = Thread(
+            target=self._record_frames, name='Save frames')
+        self._thread.start()
+
+    def add_frame(self, frame=None, pts=0):
+        if frame is None:
+            self._frame_queue.put('eof', block=False)
+        else:
+            self._frame_queue.put((frame, pts), block=False)
+
+    def _record_frames(self):
+        queue = self._frame_queue
+        writer = self._writer
+
+        try:
+            while True:
+                frame = queue.get(block=True)
+                if frame == 'eof':
+                    self._writer = None
+                    return
+                img, pts = frame
+                try:
+                    writer.write_frame(img, pts, 0)
+                except Exception as e:
+                    Logger.warning('{}: {}'.format(e, pts))
+        except Exception as e:
+            self.handle_exception(e)

@@ -3,6 +3,7 @@ __all__ = ('FTDISerializerDevice', 'FTDIPinDevice', 'FTDIADCDevice')
 
 from pybarst.ftdi import FTDIChannel
 from pybarst.ftdi.switch import SerializerSettings, PinSettings
+from pybarst.ftdi.adc import ADCSettings
 
 from kivy.properties import NumericProperty, DictProperty
 
@@ -12,7 +13,7 @@ from moa.device.adc import ADCPort
 from moa.compat import bytes_type
 from moa.logger import Logger
 from moa.base import MoaBase
-from moa.utils import ConfigPropertyList
+from moa.utils import ConfigPropertyList, to_bool
 
 from cplcom.device import DeviceStageInterface
 from cplcom import device_config_name
@@ -76,6 +77,8 @@ class FTDISerializerDevice(
     scheduled cancel.
     '''
 
+    clock_size = 2
+
     def __init__(self, **kwargs):
         super(FTDISerializerDevice, self).__init__(**kwargs)
         self.cls_method = False
@@ -111,7 +114,8 @@ class FTDISerializerDevice(
             clock_bit=self.clock_bit[self.idx],
             data_bit=self.data_bit[self.idx],
             latch_bit=self.latch_bit[self.idx],
-            num_boards=self.num_boards[self.idx], output=True)
+            num_boards=self.num_boards[self.idx], output=True,
+            clock_size=self.clock_size)
 
     def start_channel(self):
         odors = self.target
@@ -295,7 +299,7 @@ class FTDIPinDevice(ButtonViewPort, DeviceStageInterface, ScheduledEventLoop):
     idx = NumericProperty(0)
 
 
-class FTDIADCDevice(ADCPort, ScheduledEventLoop):
+class FTDIADCDevice(DeviceStageInterface, ScheduledEventLoop, ADCPort):
 
     _read_event = None
     _state_event = None
@@ -303,11 +307,14 @@ class FTDIADCDevice(ADCPort, ScheduledEventLoop):
     def __init__(self, **kwargs):
         super(FTDIADCDevice, self).__init__(**kwargs)
         self.cls_method = False
+        i = self.idx
+        self.bit_depth = self.data_width[i]
+        self.frequency = self.sampling_rate[i]
         self.num_channels = 2
+        self.active_channels = [self.chan1_active[i], self.chan2_active[i]]
         self.raw_data = [None, None]
         self.data = [None, None]
         self.ts_idx = [0, 0]
-        self.active_channels = [False, False]
 
         def read_callback(result, **kwargs):
             self.timestamp = result.ts
@@ -320,6 +327,32 @@ class FTDIADCDevice(ADCPort, ScheduledEventLoop):
             self.dispatch('on_data_update', self)
         self.request_callback(
             name='read', callback=read_callback, trigger=False, repeat=True)
+
+    def get_settings(self):
+        i = self.idx
+        return ADCSettings(
+            clock_bit=self.clock_bit[i], lowest_bit=self.lowest_bit[i],
+            num_bits=self.num_bits[i], sampling_rate=self.sampling_rate[i],
+            chan1=self.chan1_active[i], chan2=self.chan2_active[i],
+            transfer_size=self.transfer_size[i], data_width=self.data_width[i])
+
+    def start_channel(self, *largs, **kwargs):
+        self.target.open_channel()
+
+    def post_start_channel(self, *largs, **kwargs):
+        adc = self.target
+        self.frequency = adc.settings.sampling_rate
+        self.bit_depth, self.scale, self.offset = adc.get_conversion_factors()
+#         adc.set_state(True)
+#         adc.read()
+#         adc.set_state(False)
+#         try:
+#             adc.read()
+#         except:
+#             pass
+
+    def stop_channel(self, *largs, **kwargs):
+        pass
 
     def _set_state(self, *largs):
         # when active, start reading.
@@ -359,3 +392,30 @@ class FTDIADCDevice(ADCPort, ScheduledEventLoop):
             self.activation = 'inactive'
         self.request_callback('set_state', callback=post_cancel, state=False)
         return True
+
+    clock_bit = ConfigPropertyList(
+        0, 'FTDI_ADC', 'clock_bit', device_config_name, val_type=int)
+
+    lowest_bit = ConfigPropertyList(
+        0, 'FTDI_ADC', 'lowest_bit', device_config_name, val_type=int)
+
+    num_bits = ConfigPropertyList(
+        0, 'FTDI_ADC', 'num_bits', device_config_name, val_type=int)
+
+    sampling_rate = ConfigPropertyList(
+        1000, 'FTDI_ADC', 'sampling_rate', device_config_name, val_type=float)
+
+    data_width = ConfigPropertyList(
+        24, 'FTDI_ADC', 'data_width', device_config_name, val_type=int)
+
+    chan1_active = ConfigPropertyList(
+        True, 'FTDI_ADC', 'chan1_active', device_config_name, val_type=to_bool)
+
+    chan2_active = ConfigPropertyList(
+        False, 'FTDI_ADC', 'chan2_active', device_config_name,
+        val_type=to_bool)
+
+    transfer_size = ConfigPropertyList(
+        1000, 'FTDI_ADC', 'transfer_size', device_config_name, val_type=int)
+
+    idx = NumericProperty(0)

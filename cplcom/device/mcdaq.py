@@ -49,8 +49,6 @@ class MCDAQDevice(DeviceStageInterface, ButtonViewPort, ScheduledEventLoop):
     def start_channel(self):
         target = self.target
         target.open_channel()
-        target.close_channel_server()
-        target.open_channel()
         if 'o' in self.direction:
             target.write(mask=0xFF, value=0)
 
