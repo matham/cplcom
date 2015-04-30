@@ -6,7 +6,7 @@ setup(
     name='CPLCom',
     version=cplcom.__version__,
     packages=find_packages(),
-    package_data={'cplcom': ['../media/*', '/*.kv']},
+    package_data={'cplcom': ['../media/*', './*.kv']},
     install_requires=['moa', 'kivy'],
     author='Matthew Einhorn',
     author_email='moiein2000@gmail.com',
