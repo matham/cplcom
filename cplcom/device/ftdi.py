@@ -77,7 +77,7 @@ class FTDISerializerDevice(
     scheduled cancel.
     '''
 
-    clock_size = 2
+    clock_size = 20
 
     def __init__(self, **kwargs):
         super(FTDISerializerDevice, self).__init__(**kwargs)

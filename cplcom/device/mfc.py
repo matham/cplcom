@@ -40,10 +40,6 @@ class MFC(
     _read_event = None
     _rate_pat = None
 
-    def __init__(self, **kw):
-        super(MFC, self).__init__(**kw)
-        self.cls_method = False
-
     def create_device(self, server, *largs, **kwargs):
         self.target = SerialChannel(
             server=server.target, port_name=self.port_name[self.idx],
@@ -100,6 +96,7 @@ class MFC(
         t, val = mfc.read(24, stop_char='\n', timeout=to)
         m = re.match(self._rate_pat, val)
         if m is None:
+            return t, 0.
             raise Exception('Failed getting MFC rate. '
                             'Got "{}"'.format(val))
         return t, float(m.group(1))
