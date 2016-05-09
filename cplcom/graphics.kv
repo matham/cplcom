@@ -1,8 +1,102 @@
 #@PydevCodeAnalysisIgnore
+#:import expanduser os.path.expanduser
 
+<CallbackPopup>:
+    size_hint: (None, None)
+    size: (min(self.parent.width, 800), min(self.parent.height, 600)) if self.parent else (100, 100)
+
+<PopupBrowser@CallbackPopup>:
+    target: expanduser('~')
+    dirselect: False
+    multiselect: False
+    FileBrowser:
+        id: file_browser
+        dirselect: root.dirselect
+        multiselect: root.multiselect
+        path: root.target or expanduser('~')
+        on_success:
+            if root.callback: root.callback(self.path, self.selection, self.filename)
+            if self.selection or self.filename: root.dismiss()
+        on_submit:
+            if root.callback: root.callback(self.path, self.selection, self.filename)
+            root.dismiss()
+        on_cancel_state: root.dismiss()
+
+
+<ErrorLabel@Label>:
+    size_hint_y: None
+    height: self.texture_size[1]
+    text_size: self.width, None
+    padding: '5dp', '5dp'
+    canvas.before:
+        Color:
+            rgba: .2, .2, .2, 1
+        Rectangle:
+            size: self.texture_size
+            pos: self.pos
+
+<ErrorLog@CallbackPopup>:
+    container: container
+    BoxLayout:
+        orientation: 'vertical'
+        padding: '15dp', '15dp'
+        spacing: '10dp', '10dp'
+        ScrollView:
+            bar_width: '15dp'
+            GridLayout:
+                id: container
+                padding: '15dp',
+                spacing: '15dp',
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+        FloatLayout:
+            size_hint_y: None
+            height: close.texture_size[1]
+            Button:
+                id: close
+                text: 'Close'
+                on_release: root.dismiss()
+                padding: '20dp', '10dp'
+                width: self.texture_size[0]
+                size_hint_x: None
+                pos_hint: {'right': 1}
+                y: self.parent.y
+
+<ErrorIndicator>:
+    on_release:
+        self.anim.cancel(self)
+        self.alpha = 1
+        self.seen = True
+        self.display.open()
+    down: 'ok_down.png' if self.seen else 'error_down.png'
+    normal: 'ok.png' if self.seen else 'error.png'
+    canvas:
+        Color:
+            rgb: 1, 1, 1
+            a: self.alpha
+        Rectangle:
+            pos: self.pos
+            size: self.size
+            source: self.down if self.state == 'down' else self.normal
+
+
+<ImageButton@KNSpaceBehavior+ButtonBehavior+Image>
+<ImageToggleButton@KNSpaceBehavior+ToggleButtonBehavior+Image>
+
+<SizedTextInput@TextInput>:
+    size_hint_y: None
+    height: self.minimum_height
+    multiline: False
+    write_tab: False
+
+<KNSizedTextInput@KNSpaceBehavior+SizedTextInput>
+<KNButton@KNSpaceBehavior+Button>
+<KNToggleButton@KNSpaceBehavior+ToggleButton>
+<KNSpinner@KNSpaceBehavior+Spinner>
 
 # a icon widget with a label
-<LabeledIcon>:
+<LabeledIcon@KNSpaceBehavior+Widget>:
     size_hint: None, None
     size: max(self.icon_size[0], self.max_width), self.icon_size[1] + self.text_height
     max_width: 50
@@ -11,6 +105,7 @@
     background_normal: 'green-led-off-th.png'
     icon_size: 38, 38
     halign: 'center'
+    text: ''
     canvas:
         Color:
             rgb: (1, 1, 1)
@@ -30,36 +125,26 @@
         strip: True
         font_size: '11dp'
 
+<DarkButton>
+
 
 # various button/switch widgets
 <SwitchIcon@ToggleButtonBehavior+LabeledIcon>
 <PressIcon@ButtonBehavior+LabeledIcon>
-
-<ToggleDevice@SwitchIcon>:
-    dev_disabled: False
-    disabled: app.app_state == 'clear' or app.app_state == 'exception' or self.dev_disabled
-    text_height: 50
-    halign: 'center'
-
-<DarkDevice@ToggleDevice>
+<DarkSwitchIcon@SwitchIcon>:
     canvas.before:
         Color:
             rgba: [0.5, 0.5, 0.5, 0.08]
         Rectangle:
             size: self.size
             pos: self.pos
-
-
-<FFImage>:
-    size_hint: None, None
-    canvas:
+<DarkPressIcon@PressIcon>:
+    canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: [0.5, 0.5, 0.5, 0.08]
         Rectangle:
-            texture: self._texture
-            pos: self.pos
             size: self.size
-
+            pos: self.pos
 
 <TimeLineSlice>:
     scale: self.width / (self.duration if self.duration else 2000)
@@ -105,7 +190,7 @@
             bold: True
             font_size: '22sp'
             color: .1, .9, .1
-            text: root.slice_names[root.current_slice] if root.current_slice is not None and root.current_slice < len(root.slice_names) else root.text
+            text: root.slices[root.current_slice].text if root.current_slice is not None and root.current_slice < len(root.slices) else root.text
         Label:
             id: timer
             markup: True
@@ -116,115 +201,8 @@
     BoxLayout:
         id: box
 
-
-
-<ErrorPopup>:
-    title: 'Message'
-    size_hint: None, None
-    height: min(self.parent.height if self.parent else 0, 600)
-    width: min(self.parent.width if self.parent else 0, 800)
-    ScrollView:
-        scroll_type: ['bars']
-        bar_width: 10
-        Label:
-            size_hint_y: None
-            height: self.texture_size[1]
-            text_size: self.width, None
-            text: app.exception_value
-
-
-<SimulateButton@SwitchIcon>:
-    id: simulate
-    text: 'Simulate?'
-    text_height: 30
-    background_down: 'checkbox-checked-gray-th.png'
-    background_normal: 'checkbox-unchecked-gray-th.png'
-    disabled: app.app_state != 'clear'
-    on_state: app.simulate = self.state == 'down'
-
-<ExceptionDisplay@Label>:
-    size_hint_x: None
-    width: self.height if self.warn_text else 0
-    on_touch_down: app.exception_value and self.collide_point(*args[1].pos) and (app.popup_anim.cancel(self) or setattr(self, 'warn_alpha', int(bool(app.exception_value))) or app.err_popup.open())
-    warn_alpha: 0.
-    warn_text: app.exception_value
-    on_warn_text:
-        if self.warn_text and app.popup_anim: app.popup_anim.start(self)
-        else: setattr(self, 'warn_alpha', 0)
+<BufferImage>:
     canvas:
-        Color:
-            rgb: 1, 1, 1
-            a: self.warn_alpha
         Rectangle:
-            pos: self.pos
-            size: self.size
-            source: 'Remove_1.png'
-
-<StartWithConfig@GridLayout>:
-    cols: 1
-    size_hint: None, None
-    height: self.minimum_height
-    width: 200
-    padding: [5]
-    spacing: [5]
-    TextInput:
-        height: 2 * self.line_height + 5
-        size_hint_y: None
-        text: app.exp_config_path
-        on_text: app.exp_config_path = self.text
-    GridLayout:
-        rows: 1
-        size_hint_y: None
-        height: 50
-        spacing: [5]
-        Button:
-            text: 'Start'
-            on_press: app.start_stage()
-            disabled: app.app_state != 'clear'
-        Button:
-            text: 'Recover'
-            on_press: app.start_stage(True)
-            disabled: app.app_state != 'clear'
-
-<PauseRoot@Widget>:
-    size_hint: None, None
-    size: switch.size
-    SwitchIcon:
-        pos: self.parent.pos
-        id: switch
-        size_hint: None, None
-        text: 'Pause' if self.state == 'normal' else 'Continue'
-        max_width: 0
-        text_height: 30
-        background_down: 'play.png'
-        background_normal: 'pause.png'
-        icon_size: 48, 48
-        on_press:
-            app.root_stage is not None and (app.root_stage.unpause() if self.state == 'normal' else app.root_stage.pause())
-            app.app_state =  'running' if self.state == 'normal' else 'paused'
-        disabled: app.app_state != 'running' and app.app_state != 'paused'
-
-<StopExperiment@Widget>:
-    size_hint: None, None
-    size: press.size
-    PressIcon:
-        pos: self.parent.pos
-        id: press
-        text: 'Stop'
-        max_width: 0
-        text_height: 30
-        background_down: 'stop_0.png'
-        background_normal: 'stop_1.png'
-        icon_size: 48, 48
-        on_press: app.root_stage and app.root_stage.stop()
-        disabled: app.app_state != 'running'
-
-<ExperimentControl@GridLayout>:
-    size_hint: None, None
-    size: self.minimum_size
-    rows: 1
-    spacing: [20, 0]
-    ExceptionDisplay
-    StartWithConfig
-    PauseRoot
-    StopExperiment
+            size: root.texture_size
+            texture: root.img_texture

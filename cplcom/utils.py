@@ -1,3 +1,4 @@
+from kivy.compat import PY2
 
 
 def pretty_time(seconds):
@@ -19,3 +20,42 @@ def pretty_time(seconds):
         return '{0:d}:{1:d}.{2:d}'.format(m, s, ms)
     else:
         return '{0:d}.{1:d}'.format(s, ms)
+
+
+def pretty_space(space, is_rate=False):
+    '''
+    Returns a nice string representation of a number representing either size,
+    e.g. 10 MB, or rate, e.g. 10 MB/s.
+
+    >>> pretty_space(10003045065)
+    '9.32 GB'
+    >>> tools.pretty_space(10003045065, is_rate=True)
+    '9.32 GB/s'
+
+    :param space: The number to convert.
+    :param is_rate:
+        Whether the number represents size or rate. Defaults to False.
+    '''
+    t = '/s' if is_rate else ''
+    for x in ['bytes', 'KB', 'MB', 'GB']:
+        if space < 1024.0:
+            return "%3.2f %s%s" % (space, x, t)
+        space /= 1024.0
+    return "%3.2f %s%s" % (space, 'TB', t)
+
+
+def byteify(val, py2_only=True):
+    '''Returns a byte version of all the strings in the input.
+    '''
+    if not PY2 and py2_only:
+        return val
+
+    if isinstance(val, dict):
+        return {byteify(key): byteify(value)
+                for key, value in val.iteritems()}
+    elif isinstance(val, list):
+        return [byteify(element) for element in val]
+    elif isinstance(val, unicode):
+        return val.encode('utf-8')
+    else:
+        return val
