@@ -1,4 +1,6 @@
-
+'''Barst RTV Wrapper
+=======================
+'''
 from pybarst.rtv import RTVChannel
 
 from kivy.properties import (
@@ -15,40 +17,83 @@ __all__ = ('RTVChan', )
 
 
 class RTVChan(DeviceExceptionBehavior, Device, ScheduledEventLoop):
+    '''A :class:`moa.device.Device` wrapper around a
+    :class:`pybarst.rtv.RTVChannel` instance.
+    '''
 
     __settings_attrs__ = ('output_img_fmt', 'output_video_fmt', 'port')
 
     _read_event = None
 
     last_img = ObjectProperty(None)
+    '''The last image received from the device. It's a 2-tuple of the timestamp
+    and :class:`ffpyplayer.pic.Image` instance.
+
+    By binding to the `on_data_update` event and then reading the value
+    of :attr:`last_image` one gets each image as it's read.
+    '''
 
     output_img_fmt = OptionProperty('gray', options=[
         'rgb16', 'gray', 'rgb15', 'rgb24', 'rgb32'])
+    '''The desired output image format that the rtv device should send us.
+    It can be one of `'rgb16', 'gray', 'rgb15', 'rgb24', 'rgb32'`.
+
+    Defaults to `'gray'`.
+    '''
 
     ff_output_img_fmt = ''
+    '''The format of the output image from the ffpyplayer picture formats
+    :attr:`ffpyplayer.tools.pix_fmts`, translated from :attr:`output_img_fmt`.
+
+    Read only.
+    '''
 
     output_video_fmt = OptionProperty('full_NTSC', options=[
         'full_NTSC', 'full_PAL', 'CIF_NTSC', 'CIF_PAL', 'QCIF_NTSC',
         'QCIF_PAL'])
+    '''The desired output image size that the rtv device should send us.
+    It can be one of
+    `'full_NTSC', 'full_PAL', 'CIF_NTSC', 'CIF_PAL', 'QCIF_NTSC', 'QCIF_PAL'`
+    and its corresponding size is listed in :attr:`img_sizes`.
+    '''
 
     port = NumericProperty(0)
+    '''The port number on the RTV card of camera to use.
+    '''
 
     server = ObjectProperty(None)
+    '''The internal barst :class:`pybarst.core.server.BarstServer`. It
+    must be provided to the instance.
+    '''
 
-    rate = None
+    rate = (2997, 100)
+    '''The output frame rate. It's read only.
+    '''
 
     size = None
+    '''The actual output size of the images. Computed from
+    :attr:`output_video_fmt`.
+    '''
 
     chan = ObjectProperty(None)
+    '''The internal :class:`pybarst.rtv.RTVChannel` instance.
+    It is read only and is automatically created.
+    '''
 
     ffmpeg_img_fmt_dict = {
         'rgb16': 'rgb565le', 'gray': 'gray', 'rgb15': 'rgb555le',
         'rgb24': 'rgb24', 'rgb32': 'rgba'}
+    '''Conversion dict between the :attr:`output_img_fmt` to the
+    :attr:`ff_output_img_fmt` format.
+    '''
 
     img_sizes = {
         'full_NTSC': (640, 480), 'full_PAL': (768, 576),
         'CIF_NTSC': (320, 240), 'CIF_PAL': (384, 288),
         'QCIF_NTSC': (160, 120),  'QCIF_PAL': (192, 144)}
+    '''Conversion dict between the :attr:`output_video_fmt` to the
+    :attr:`size` of the images.
+    '''
 
     def _post_read(self, result):
         img = Image(
@@ -71,7 +116,6 @@ class RTVChan(DeviceExceptionBehavior, Device, ScheduledEventLoop):
             chan=n, server=self.server.server, video_fmt=video_fmt,
             frame_fmt=frame_fmt, luma_filt=frame_fmt == 'gray',
             lossless=True)
-        self.rate = (2997, 100)
         self.size = self.img_sizes[video_fmt]
 
         def finish_activate(*largs):

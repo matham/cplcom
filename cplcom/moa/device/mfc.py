@@ -1,4 +1,6 @@
-
+'''Barst Serial AALBORG MFC Wrapper
+======================================
+'''
 import re
 
 from kivy.properties import ObjectProperty, StringProperty, NumericProperty
@@ -14,6 +16,10 @@ __all__ = ('MFC', )
 
 class MFC(DeviceExceptionBehavior, NumericPropertyViewChannel,
           ScheduledEventLoop):
+    '''A :class:`moa.device.analog.NumericPropertyViewChannel` wrapper around a
+    :class:`pybarst.serial.SerialChannel` instance which controls a AALBORG
+    MFC.
+    '''
 
     __settings_attrs__ = ('port_name', 'mfc_id')
 
@@ -22,19 +28,27 @@ class MFC(DeviceExceptionBehavior, NumericPropertyViewChannel,
     '''
 
     mfc_id = NumericProperty(0)
-    '''The MFC assigned number used to communicate with that MFC.
+    '''The MFC assigned decimal number used to communicate with that MFC.
     '''
 
     server = ObjectProperty(None, allownone=True)
+    '''The internal barst :class:`pybarst.core.server.BarstServer`. It
+    must be provided to the instance.
+    '''
 
     mfc_timeout = NumericProperty(4000)
+    '''How long to wait before the MFC times out. Defaults to 4000 ms.
+    '''
 
     chan = ObjectProperty(None)
+    '''The internal :class:`pybarst.serial.SerialChannel` instance.
+    It is read only and is automatically created.
+    '''
 
     _read_event = None
     _rate_pat = None
 
-    def set_mfc_rate(self, val=0):
+    def _set_mfc_rate(self, val=0):
         mfc = self.chan
         n = self.mfc_id
         to = self.mfc_timeout
@@ -46,7 +60,7 @@ class MFC(DeviceExceptionBehavior, NumericPropertyViewChannel,
             raise Exception('Failed setting MFC rate. '
                             'Expected "{}", got "{}"'.format(rate_out, val))
 
-    def get_mfc_rate(self):
+    def _get_mfc_rate(self):
         mfc = self.chan
         n = self.mfc_id
         to = self.mfc_timeout
@@ -64,7 +78,7 @@ class MFC(DeviceExceptionBehavior, NumericPropertyViewChannel,
         self.dispatch('on_data_update', self)
 
     def set_state(self, state, **kwargs):
-        self.request_callback(self.set_mfc_rate, val=state)
+        self.request_callback(self._set_mfc_rate, val=state)
 
     def activate(self, *largs, **kwargs):
         kwargs['state'] = 'activating'
@@ -82,7 +96,7 @@ class MFC(DeviceExceptionBehavior, NumericPropertyViewChannel,
         def finish_activate(*largs):
             self.activation = 'active'
             self._read_event = self.request_callback(
-                self.get_mfc_rate, callback=self._set_state_from_mfc,
+                self._get_mfc_rate, callback=self._set_state_from_mfc,
                 repeat=True)
         self.request_callback(self._start_channel, finish_activate)
         return True
@@ -108,18 +122,18 @@ class MFC(DeviceExceptionBehavior, NumericPropertyViewChannel,
         if val != units_out:
             raise Exception('Failed setting MFC to use SLPM units. '
                             'Expected "{}", got "{}"'.format(units_out, val))
-        self.set_mfc_rate(0)
+        self._set_mfc_rate(0)
 
     def deactivate(self, *largs, **kwargs):
         kwargs['state'] = 'deactivating'
         if not super(MFC, self).deactivate(*largs, **kwargs):
             return False
 
-        self.remove_request(self.get_mfc_rate, self._read_event)
+        self.remove_request(self._get_mfc_rate, self._read_event)
         self._read_event = None
 
         def finish_deactivate(*largs):
             self.activation = 'inactive'
             self.stop_thread()
-        self.request_callback(self.set_mfc_rate, finish_deactivate)
+        self.request_callback(self._set_mfc_rate, finish_deactivate)
         return True

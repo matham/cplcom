@@ -1,0 +1,176 @@
+{
+    "cplcom.moa.device.ffplayer.FFPyPlayerDevice": {
+        "codec": [
+            "When e.g. a direct show or similar stream is used as the",
+            ":attr:`filename`, it's the video codec that is to be used when opening and",
+            "configuring the stream. Defaults to None.",
+            ""
+        ],
+        "display_img_fmt": [
+            "The actual output image pixel format from",
+            ":attr:`ffpyplayer.tools.pix_fmts`. It's read only and is automatically set",
+            "when activated.",
+            ""
+        ],
+        "filename": [
+            "The full filename to the video file or video stream.",
+            "    ",
+            ""
+        ],
+        "input_img_fmt": [
+            "When e.g. a direct show or similar stream is used as the",
+            ":attr:`filename`, it's the image pixel format from",
+            ":attr:`ffpyplayer.tools.pix_fmts` that is to be used when opening and",
+            "configuring the stream.",
+            ""
+        ],
+        "input_img_h": [
+            "When e.g. a direct show or similar stream is used as the",
+            ":attr:`filename`, it's the image height that is to be used when opening and",
+            "configuring the stream. Defaults to None.",
+            ""
+        ],
+        "input_img_w": [
+            "When e.g. a direct show or similar stream is used as the",
+            ":attr:`filename`, it's the image width that is to be used when opening and",
+            "configuring the stream. Defaults to None.",
+            ""
+        ],
+        "input_rate": [
+            "When e.g. a direct show or similar stream is used as the",
+            ":attr:`filename`, it's the video frame rate that is to be used when",
+            "opening and configuring the stream. Defaults to None.",
+            ""
+        ],
+        "last_img": [
+            "The last image received from the player. It's a 2-tuple of the timestamp",
+            "and :class:`ffpyplayer.pic.Image` instance.",
+            "",
+            "By binding to the `on_data_update` event and then reading the value",
+            "of :attr:`last_image` one gets each image as it's read.",
+            ""
+        ],
+        "output_img_fmt": [
+            "The image pixel format from :attr:`ffpyplayer.tools.pix_fmts` that is to",
+            "be used for the images output to us by the player. Defaults to `''` and",
+            "must be set.",
+            ""
+        ],
+        "rate": [
+            "The output frame rate. It's read only and is automatically set when",
+            "activated.",
+            ""
+        ],
+        "size": [
+            "The output image size. It's read only and is automatically set when",
+            "activated.",
+            ""
+        ],
+        "vid_fmt": [
+            "The video file format of the input stream. This is used to open e.g.",
+            "a webcam format, a actual file, or e.g. a Internet stream. When None,",
+            "the default, it's a file. Defaults to None.",
+            ""
+        ]
+    },
+    "cplcom.moa.device.ffplayer.FFPyWriterDevice": {
+        "error_count": [
+            "The number of frames that are skipped when writing to file. Often due",
+            "to a bad timestamp that doesn't fit the frame rate. It is read only.",
+            ""
+        ],
+        "filename": [
+            "The filename of the video to create.",
+            "    ",
+            ""
+        ],
+        "ifmt": [
+            "The pixel format from :attr:`ffpyplayer.tools.pix_fmts` in which the",
+            "images passed to :meth:`add_frame` will be in. They must match.",
+            ""
+        ],
+        "ofmt": [
+            "The pixel format from :attr:`ffpyplayer.tools.pix_fmts` in which",
+            "the images will be written to disk. If not empty and different than",
+            ":attr:`ifmt`, the input format, the images will be internally converted to",
+            "this format before writing to disk.",
+            ""
+        ],
+        "rate": [
+            "The frame rate at which the video frames will be written. It should",
+            "match the timestamps that will be passed to :meth:`add_frame`.",
+            ""
+        ],
+        "size": [
+            "The image sizes that will be passed to the video. This must be",
+            "set to match the image frames that are passed to :meth:`add_frame`.",
+            ""
+        ]
+    },
+    "cplcom.moa.device.rtv.RTVChan": {
+        "chan": [
+            "The internal :class:`pybarst.rtv.RTVChannel` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ],
+        "ff_output_img_fmt": [
+            "The format of the output image from the ffpyplayer picture formats",
+            ":attr:`ffpyplayer.tools.pix_fmts`, translated from :attr:`output_img_fmt`.",
+            "",
+            "Read only.",
+            ""
+        ],
+        "ffmpeg_img_fmt_dict": [
+            "Conversion dict between the :attr:`output_img_fmt` to the",
+            ":attr:`ff_output_img_fmt` format.",
+            ""
+        ],
+        "img_sizes": [
+            "Conversion dict between the :attr:`output_video_fmt` to the",
+            ":attr:`size` of the images.",
+            ""
+        ],
+        "last_img": [
+            "The last image received from the device. It's a 2-tuple of the timestamp",
+            "and :class:`ffpyplayer.pic.Image` instance.",
+            "",
+            "By binding to the `on_data_update` event and then reading the value",
+            "of :attr:`last_image` one gets each image as it's read.",
+            ""
+        ],
+        "output_img_fmt": [
+            "The desired output image format that the rtv device should send us.",
+            "It can be one of `'rgb16', 'gray', 'rgb15', 'rgb24', 'rgb32'`.",
+            "",
+            "Defaults to `'gray'`.",
+            ""
+        ],
+        "output_video_fmt": [
+            "The desired output image size that the rtv device should send us.",
+            "It can be one of",
+            "`'full_NTSC', 'full_PAL', 'CIF_NTSC', 'CIF_PAL', 'QCIF_NTSC', 'QCIF_PAL'`",
+            "and its corresponding size is listed in :attr:`img_sizes`.",
+            ""
+        ],
+        "port": [
+            "The port number on the RTV card of camera to use.",
+            "    ",
+            ""
+        ],
+        "rate": [
+            "The output frame rate. It's read only.",
+            "    ",
+            ""
+        ],
+        "server": [
+            "The internal barst :class:`pybarst.core.server.BarstServer`. It",
+            "must be provided to the instance.",
+            ""
+        ],
+        "size": [
+            "The actual output size of the images. Computed from",
+            ":attr:`output_video_fmt`.",
+            ""
+        ]
+    }
+}

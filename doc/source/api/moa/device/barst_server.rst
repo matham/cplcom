@@ -5,7 +5,7 @@ Moa Barst Interface
 *******************
 
 :mod:`cplcom.moa.device.barst_server`
-=============================
+======================================
 
 .. automodule:: cplcom.moa.device.barst_server
    :members:

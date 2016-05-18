@@ -4,7 +4,6 @@
 # TODO: fix restart
 
 import moa
-from inspect import isclass
 import os
 import sys
 import json
@@ -19,6 +18,9 @@ from kivy.core.window import Window
 from kivy.resources import resource_add_path
 from kivy.factory import Factory
 from kivy.uix.behaviors.knspace import knspace
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
+from kivy.base import ExceptionManager, ExceptionHandler
 
 from moa.app import MoaApp
 from moa.compat import unicode_type
@@ -27,9 +29,10 @@ from moa.logger import Logger
 
 import cplcom.graphics  # required to load kv
 from cplcom.moa import config_name
+from cplcom.moa.config import populate_config, apply_config
 from cplcom.utils import byteify
 
-if not os.environ.get('SPHINX_DOC_INCLUDE', None):
+if not os.environ.get('KIVY_DOC_INCLUDE', None):
     from kivy.config import Config
     Config.set('kivy', 'exit_on_escape', 0)
     Config.set('kivy', 'multitouch_on_demand', 1)
@@ -81,8 +84,6 @@ class ExperimentApp(MoaApp):
     for the experiment, e.g. ITI times etc.
     '''
 
-    kns_settings_names = {'app': 'app'}
-
     app_settings = ObjectProperty({})
 
     error_indicator = ObjectProperty(None)
@@ -93,12 +94,25 @@ class ExperimentApp(MoaApp):
 
     filebrowser = ObjectProperty(None)
 
+    close_popup = ObjectProperty(None)
+
+    @classmethod
+    def get_config_classes(cls):
+        d = {'app': cls}
+        if cls != ExperimentApp:
+            d.update(Factory.RootStage.get_config_classes())
+        return d
+
     def __init__(self, **kw):
         super(ExperimentApp, self).__init__(**kw)
         self.knsname = 'app'
         self.recovery_directory = self.recovery_path
         resource_add_path(join(dirname(dirname(dirname(__file__))), 'media'))
         self.filebrowser = Factory.PopupBrowser()
+        self.close_popup = Popup(
+            title='Cannot close',
+            content=Label(text='Cannot close while experiment is running'),
+            size_hint=(.8, .8))
 
     def build(self, root_cls=None):
         if root_cls is None:
@@ -111,6 +125,13 @@ class ExperimentApp(MoaApp):
         if root is not None and self.inspect:
             inspector.create_inspector(Window, root)
         return root
+
+    def ask_close(self, *largs, **kwargs):
+        if (self.root_stage and self.root_stage.started and
+                not self.root_stage.finished):
+            self.close_popup.open()
+            return True
+        return False
 
     @app_error
     def start_stage(self, root_cls=None, restart=False):
@@ -146,53 +167,23 @@ class ExperimentApp(MoaApp):
         else:
             root = self.root_stage = root_cls()
 
-        with open(settings) as fh:
-            opts = byteify(json.load(fh))
-
-        classes = root.get_config_classes()
-        classes.update(self.kns_settings_names)
-        new_opts = {}
-
-        for name, cls in classes.items():
-            if isinstance(cls, basestring):
-                obj = getattr(knspace, cls)
-            else:
-                obj = cls
-
-            is_cls = isclass(obj)
-            opt = opts.get(name, {})
-            new_vals = {}
-            if is_cls:
-                for attr in obj.get_settings_attrs():
-                    new_vals[attr] = opt.get(
-                        attr, getattr(obj, attr).defaultvalue)
-            else:
-                for attr in obj.__class__.get_settings_attrs():
-                    new_vals[attr] = opt.get(attr, getattr(obj, attr))
-
-            new_opts[name] = new_vals
+        classes = self.get_config_classes()
+        new_opts = populate_config(settings, classes)
 
         with open(settings, 'w') as fh:
             json.dump(new_opts, fh, sort_keys=True, indent=4,
                       separators=(',', ': '))
         self.app_settings = new_opts
 
-        for name, cls in classes.items():
-            if isinstance(cls, basestring):
-                obj = getattr(knspace, name)
-            elif isclass(cls):
-                continue
-            else:
-                obj = cls
-            if not obj:
-                continue
-
-            for k, v in new_opts[name].items():
-                setattr(obj, k, v)
+        for k, v in new_opts['app'].items():
+            setattr(self, k, v)
 
         if restart and isfile(self.recovery_file):
             self.load_attributes(self.recovery_file, stage=root)
         root.step_stage()
+
+    def clean_up_root_stage(self):
+        self.root_stage = None
 
     def handle_exception(self, exception, exc_info=None, event=None, obj=None,
                          *largs):
@@ -218,21 +209,37 @@ class ExperimentApp(MoaApp):
         if root is not None and self.recovery_directory:
             self.recovery_file = self.dump_attributes(
                 prefix='experiment_', stage=root)
-        if root:
+        if root and not root.finished:
             root.stop()
-            self.root_stage = None
+        else:
+            self.clean_up_root_stage()
+
+
+class CPLComHandler(ExceptionHandler):
+
+    def handle_exception(self, inst):
+        if getattr(knspace, 'app', None):
+            knspace.app.handle_exception(inst, exc_info=sys.exc_info())
+        return ExceptionManager.PASS
+
+
+def check_close(*largs):
+    return
 
 
 def run_app(cls):
     '''Entrance method used to start the GUI. It creates and runs
     :class:`ExperimentApp`.
     '''
+    handler = CPLComHandler()
+    ExceptionManager.add_handler(handler)
+
     app = cls()
+    Window.fbind('on_request_close', app.ask_close)
     try:
         app.run()
     except Exception as e:
         app.handle_exception(e, exc_info=sys.exc_info())
 
-    root = app.root_stage
-    if root:
-        root.stop()
+    Window.funbind('on_request_close', app.ask_close)
+    ExceptionManager.remove_handler(handler)

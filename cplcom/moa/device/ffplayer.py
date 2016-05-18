@@ -1,11 +1,12 @@
-
+'''FFPyPlayer Wrapper
+========================
+'''
 import time
-from threading import Thread
 from fractions import Fraction
 import traceback
 try:
     from Queue import Queue
-except:
+except ImportError:
     from queue import Queue
 
 from ffpyplayer.player import MediaPlayer
@@ -23,22 +24,26 @@ from cplcom.moa.device import DeviceExceptionBehavior
 
 __all__ = ('FFPyPlayerDevice', 'FFPyWriterDevice')
 
-logger_func = {'quiet': Logger.critical, 'panic': Logger.critical,
-               'fatal': Logger.critical, 'error': Logger.error,
-               'warning': Logger.warning, 'info': Logger.info,
-               'verbose': Logger.debug, 'debug': Logger.debug}
+_logger_func = {'quiet': Logger.critical, 'panic': Logger.critical,
+                'fatal': Logger.critical, 'error': Logger.error,
+                'warning': Logger.warning, 'info': Logger.info,
+                'verbose': Logger.debug, 'debug': Logger.debug}
 
 
 def _log_callback(message, level):
     message = message.strip()
     if message:
-        logger_func[level]('ffpyplayer: {}'.format(message))
+        _logger_func[level]('ffpyplayer: {}'.format(message))
 
 if not get_log_callback():
     set_log_callback(_log_callback)
 
 
 class FFPyPlayerDevice(DeviceExceptionBehavior, Device, ScheduledEventLoop):
+    '''A :class:`moa.device.Device` wrapper around a
+    :class:`ffpyplayer.player.MediaPlayer` instance which reads a video
+    stream and forwards the images.
+    '''
 
     __settings_attrs__ = ('filename', 'output_img_fmt')
 
@@ -46,28 +51,75 @@ class FFPyPlayerDevice(DeviceExceptionBehavior, Device, ScheduledEventLoop):
     _frame_queue = None
 
     filename = StringProperty('Wildlife.mp4')
+    '''The full filename to the video file or video stream.
+    '''
 
     input_img_fmt = StringProperty(None, allownone=True)
+    '''When e.g. a direct show or similar stream is used as the
+    :attr:`filename`, it's the image pixel format from
+    :attr:`ffpyplayer.tools.pix_fmts` that is to be used when opening and
+    configuring the stream.
+    '''
 
     input_img_w = NumericProperty(None, allownone=True)
+    '''When e.g. a direct show or similar stream is used as the
+    :attr:`filename`, it's the image width that is to be used when opening and
+    configuring the stream. Defaults to None.
+    '''
 
     input_img_h = NumericProperty(None, allownone=True)
+    '''When e.g. a direct show or similar stream is used as the
+    :attr:`filename`, it's the image height that is to be used when opening and
+    configuring the stream. Defaults to None.
+    '''
 
     input_rate = NumericProperty(None, allownone=True)
+    '''When e.g. a direct show or similar stream is used as the
+    :attr:`filename`, it's the video frame rate that is to be used when
+    opening and configuring the stream. Defaults to None.
+    '''
 
     output_img_fmt = StringProperty('', allownone=True)
+    '''The image pixel format from :attr:`ffpyplayer.tools.pix_fmts` that is to
+    be used for the images output to us by the player. Defaults to `''` and
+    must be set.
+    '''
 
     vid_fmt = StringProperty(None, allownone=True)
+    '''The video file format of the input stream. This is used to open e.g.
+    a webcam format, a actual file, or e.g. a Internet stream. When None,
+    the default, it's a file. Defaults to None.
+    '''
 
     codec = StringProperty(None, allownone=True)
+    '''When e.g. a direct show or similar stream is used as the
+    :attr:`filename`, it's the video codec that is to be used when opening and
+    configuring the stream. Defaults to None.
+    '''
 
     last_img = ObjectProperty(None)
+    '''The last image received from the player. It's a 2-tuple of the timestamp
+    and :class:`ffpyplayer.pic.Image` instance.
+
+    By binding to the `on_data_update` event and then reading the value
+    of :attr:`last_image` one gets each image as it's read.
+    '''
 
     rate = None
+    '''The output frame rate. It's read only and is automatically set when
+    activated.
+    '''
 
     size = None
+    '''The output image size. It's read only and is automatically set when
+    activated.
+    '''
 
     display_img_fmt = ''
+    '''The actual output image pixel format from
+    :attr:`ffpyplayer.tools.pix_fmts`. It's read only and is automatically set
+    when activated.
+    '''
 
     def _player_callback(self, mode, value):
         if mode == 'display_sub':
@@ -174,22 +226,45 @@ class FFPyPlayerDevice(DeviceExceptionBehavior, Device, ScheduledEventLoop):
 
 
 class FFPyWriterDevice(DeviceExceptionBehavior, Device, ScheduledEventLoop):
+    '''A :class:`moa.device.Device` wrapper around a
+    :class:`ffpyplayer.writer.MediaWriter` instance which writes a video
+    stream to a file.
+    '''
 
     __settings_attrs__ = ('filename', 'ofmt')
 
     _frame_queue = None
 
     error_count = 0
+    '''The number of frames that are skipped when writing to file. Often due
+    to a bad timestamp that doesn't fit the frame rate. It is read only.
+    '''
 
     filename = StringProperty('')
+    '''The filename of the video to create.
+    '''
 
     size = ObjectProperty(None)
+    '''The image sizes that will be passed to the video. This must be
+    set to match the image frames that are passed to :meth:`add_frame`.
+    '''
 
     rate = ObjectProperty(1.)
+    '''The frame rate at which the video frames will be written. It should
+    match the timestamps that will be passed to :meth:`add_frame`.
+    '''
 
     ifmt = StringProperty('')
+    '''The pixel format from :attr:`ffpyplayer.tools.pix_fmts` in which the
+    images passed to :meth:`add_frame` will be in. They must match.
+    '''
 
     ofmt = StringProperty('')
+    '''The pixel format from :attr:`ffpyplayer.tools.pix_fmts` in which
+    the images will be written to disk. If not empty and different than
+    :attr:`ifmt`, the input format, the images will be internally converted to
+    this format before writing to disk.
+    '''
 
     def activate(self, *largs, **kwargs):
         if not super(FFPyWriterDevice, self).activate(*largs, **kwargs):
@@ -212,6 +287,18 @@ class FFPyWriterDevice(DeviceExceptionBehavior, Device, ScheduledEventLoop):
         return False
 
     def add_frame(self, frame, pts):
+        '''Adds a frame to be written to disk.
+
+        :Parameters:
+
+            `frame`: A :class:`ffpyplayer.pic.Image` instance.
+                The image to be written.
+            `pts`: float
+                The time stamp of the image.
+
+        A frame of None is passed internally when the device is to be
+        deactivated.
+        '''
         if frame is None:
             self._frame_queue.put('eof', block=False)
         else:

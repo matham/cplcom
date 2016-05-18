@@ -2,7 +2,8 @@
 from moa.stage import MoaStage
 
 
-class RootStageBase(MoaStage):
+class ConfigStageBase(MoaStage):
 
-    def get_config_classes(self):
+    @classmethod
+    def get_config_classes(cls):
         return {}

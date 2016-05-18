@@ -1,3 +1,6 @@
+'''Barst Server Wrapper
+=======================
+'''
 import time
 import re
 
@@ -15,7 +18,8 @@ _local_server_pat = re.compile(r'\\\\\.\\pipe.+')
 
 
 class Server(DeviceExceptionBehavior, Device, ScheduledEventLoop):
-    '''Server device which creates and opens the Barst server.
+    '''A :class:`moa.device.Device` wrapper around a
+    :class:`pybarst.core.server.BarstServer` instance.
     '''
 
     __settings_attrs__ = ('server_path', 'server_pipe')
@@ -63,26 +67,29 @@ class Server(DeviceExceptionBehavior, Device, ScheduledEventLoop):
         return False
 
     server = ObjectProperty()
-    '''The internal barst server.
+    '''The internal barst :class:`pybarst.core.server.BarstServer`,
+    it read only and is automatically created.
     '''
 
     restart = BooleanProperty(True)
-    '''If True (and the server is local) will restart the server if it's
+    '''If True (and the server is local) we will restart the server if it's
     already open.
+
+    Defaults to ``True``
     '''
 
     server_path = StringProperty('')
     '''The full path to the Barst executable. Could be empty if the server
     is already started, on remote computer, or if it's in the typical
-    `Program Files` path. If the server is not running, this path is needed
-    to launch the server.
+    `Program Files` path or came installed with the wheel. If the server is not
+    running, this executable is needed to launch the server.
 
     Defaults to `''`.
     '''
 
     server_pipe = StringProperty('')
     '''The full path to the pipe name (to be) used by the server. Examples are
-    ``\\\\remote_name\pipe\pipe_name``, where ``remote_name`` is the name of
+    ``\\remote_name\pipe\pipe_name``, where ``remote_name`` is the name of
     the remote computer, or a period (`.`) if the server is local, and
     ``pipe_name`` is the name of the pipe used to create the server.
 

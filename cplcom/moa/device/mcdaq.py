@@ -1,4 +1,6 @@
-
+'''Barst Measurement Computing DAQ Wrapper
+==========================================
+'''
 from pybarst.mcdaq import MCDAQChannel
 
 from kivy.properties import NumericProperty, ObjectProperty
@@ -11,6 +13,34 @@ __all__ = ('MCDAQDevice', )
 
 
 class MCDAQDevice(DeviceExceptionBehavior, ButtonViewPort, ScheduledEventLoop):
+    '''A :class:`moa.device.digital.ButtonViewPort` wrapper around a
+    :class:`pybarst.mcdaq.MCDAQChannel` instance which controls a Switch
+    and Sense 8/8.
+
+    For this class, :class:`moa.device.digital.ButtonViewPort.dev_map` must be
+    provided upon creation and it's a dict whose keys are the property names
+    and whose values are the Switch and Sense 8/8 channel numbers that the
+    property controls.
+
+    E.g. for a light switch connected to channel 3 on the Switch and Sense
+    8/8 output port define the class::
+
+        class MyMCDAQDevice(MCDAQDevice):
+
+            light = BooleanProperty(False)
+
+        And then create the instance with::
+
+            dev = MyMCDAQDevice(dev_map={'light': 3})
+
+        And then we can set it high by calling e.g.::
+
+            dev.set_state(high=['light'])
+
+    For an input devices it can defined similarly and the state of the property
+    reflects the value of the port. A switch and sense which has both a input
+    and output device still needs to create two device for each.
+    '''
 
     __settings_attrs__ = ('SAS_chan', )
 
@@ -102,12 +132,17 @@ class MCDAQDevice(DeviceExceptionBehavior, ButtonViewPort, ScheduledEventLoop):
             self.chan.cancel_read(flush=True)
 
     chan = ObjectProperty(None)
+    '''The internal :class:`pybarst.mcdaq.MCDAQChannel` instance.
+    It is read only and is automatically created.
+    '''
 
     server = ObjectProperty(None, allownone=True)
+    '''The internal barst :class:`pybarst.core.server.BarstServer`. It
+    must be provided to the instance.
+    '''
 
     SAS_chan = NumericProperty(0)
-    '''`channel_number`, the channel number of the Switch & Sense 8/8 as
-    configured in InstaCal.
+    '''The channel number of the Switch & Sense 8/8 as configured in InstaCal.
 
     Defaults to zero.
     '''
