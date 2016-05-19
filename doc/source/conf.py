@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import sys
-import os
 from sphinx.ext.autodoc import ClassDocumenter
 
 import cplcom
@@ -32,9 +30,10 @@ html_theme_options = {
 }
 
 intersphinx_mapping = {
-        'moa': ('https://matham.github.io/moa/', None),
-        'pybarst': ('https://matham.github.io/pybarst/', None),
-        'ffpyplayer': ('https://matham.github.io/ffpyplayer/', None)}
+    'moa': ('https://matham.github.io/moa/', None),
+    'pybarst': ('https://matham.github.io/pybarst/', None),
+    'ffpyplayer': ('https://matham.github.io/ffpyplayer/', None)
+}
 
 # The suffix of source filenames.
 source_suffix = '.rst'

@@ -1,7 +1,7 @@
 #@PydevCodeAnalysisIgnore
 #:import expanduser os.path.expanduser
 
-<CallbackPopup>:
+<CallbackPopup@KNSpaceBehavior+DragBehavior+Popup>:
     size_hint: (None, None)
     size: (min(self.parent.width, 800), min(self.parent.height, 600)) if self.parent else (100, 100)
 
@@ -24,17 +24,27 @@
         on_cancel_state: root.dismiss()
 
 
-<ErrorLabel@Label>:
+<ErrorLabel@BoxLayout>:
     size_hint_y: None
-    height: self.texture_size[1]
-    text_size: self.width, None
-    padding: '5dp', '5dp'
-    canvas.before:
-        Color:
-            rgba: .2, .2, .2, 1
-        Rectangle:
-            size: self.texture_size
-            pos: self.pos
+    height: label.texture_size[1]
+    text: ''
+    level: 'error'
+    Label:
+        id: label
+        text_size: self.width, None
+        padding: '5dp', '5dp'
+        text: root.text
+        canvas.before:
+            Color:
+                rgba: .2, .2, .2, 1
+            Rectangle:
+                size: self.texture_size
+                pos: self.pos
+    ImageButton:
+        size_hint: None, None
+        width: min(60, label.height)
+        height: min(60, label.height)
+        source: '{}.png'.format(root.level)
 
 <ErrorLog@CallbackPopup>:
     container: container
@@ -42,15 +52,19 @@
         orientation: 'vertical'
         padding: '15dp', '15dp'
         spacing: '10dp', '10dp'
-        ScrollView:
+        RecycleView:
+            id: container
             bar_width: '15dp'
-            GridLayout:
-                id: container
-                padding: '15dp',
-                spacing: '15dp',
-                cols: 1
+            viewclass: 'ErrorLabel'
+            RecycleBoxLayout:
+                orientation: 'vertical'
+                padding: '15dp'
+                spacing: '4dp'
                 size_hint_y: None
                 height: self.minimum_height
+                default_size_hint: (1, None)
+                initial_size: (5, 50)
+                default_size: (5, None)
         FloatLayout:
             size_hint_y: None
             height: close.texture_size[1]
@@ -66,16 +80,16 @@
 
 <ErrorIndicator>:
     on_release:
-        self.anim.cancel(self)
-        self.alpha = 1
-        self.seen = True
-        self.display.open()
-    down: 'ok_down.png' if self.seen else 'error_down.png'
-    normal: 'ok.png' if self.seen else 'error.png'
+        self._anim.cancel(self)
+        self._alpha = 1
+        self._level = 'ok'
+        self._display.open()
+    down: '{}_down.png'.format(self._level)
+    normal: '{}.png'.format(self._level)
     canvas:
         Color:
             rgb: 1, 1, 1
-            a: self.alpha
+            a: self._alpha
         Rectangle:
             pos: self.pos
             size: self.size
@@ -148,19 +162,19 @@
             pos: self.pos
 
 <TimeLineSlice>:
-    scale: self.width / (self.duration if self.duration else 2000)
+    _scale: self.width / (self.duration if self.duration else 2000)
     bar_height: 20
     canvas:
         Color:
             rgba: self.color[0] if self.color is not None else self._color[0]
         Rectangle:
             pos: self.x, self.center[1] - self.bar_height / 2.0
-            size: min(self.width, self.elapsed_t * self.scale), self.bar_height
+            size: min(self.width, self.elapsed_t * self._scale), self.bar_height
         Color:
             rgba: self.color[1] if self.color is not None else self._color[1]
         Rectangle:
-            pos: self.x + min(self.width, self.elapsed_t * self.scale), self.center[1] - self.bar_height / 2.0
-            size: max(0, self.width - (min(self.width, self.elapsed_t * self.scale))), self.bar_height
+            pos: self.x + min(self.width, self.elapsed_t * self._scale), self.center[1] - self.bar_height / 2.0
+            size: max(0, self.width - (min(self.width, self.elapsed_t * self._scale))), self.bar_height
     Label:
         x: root.x
         y: root.top - self.height

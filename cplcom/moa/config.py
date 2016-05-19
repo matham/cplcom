@@ -1,7 +1,55 @@
 '''Config
 ==========
 
-Configuration used across Moa objects.
+Configuration used across Moa objects within CPL experiments.
+
+Overview
+---------
+
+Configuration works as follows. Each class that has configuration attributes
+must list these attributes in a list in the class ``__settings_attrs__``
+attribute. Each of the properties listed there must be Kivy properties of
+that class.
+
+When generating docs, the documentation of these properties are dumped to
+a json file using :func:`create_doc_listener` (and should be committed to the
+repo manually).
+
+Each experiment defines a application class based on
+:class:`~cplcom.moa.app.ExperimentApp`. Using this classe's
+:meth:`~cplcom.moa.app.ExperimentApp.get_config_classes` method we get a list
+of all classes used in the current experiment that requires configuration
+and :func:`write_config_attrs_rst` is used to combine all these docs
+and display them in a single place in the generated html pages.
+
+Similarly, when the app is run, a single json file is generated with all these
+config values and is later read and is used to configure the experiment by the
+user. :attr:`~cplcom.moa.app.ExperimentApp.app_settings` is where it's stored
+after reading. Each class is responsible for reading its configuration
+from there.
+
+Usage
+-----
+
+When creating an experiment, ensure that the root stage called `RootStage`
+inherited from :class:`~cplcom.moa.stages.ConfigStageBase` overwrites the
+:meth:`~cplcom.moa.stages.ConfigStageBase.get_config_classes` method
+returning all the classes that need configuration.
+
+Then, in the sphinx conf.py file do::
+
+    def setup(app):
+        create_doc_listener(app, project_name)
+        app.connect('build-finished', partial(write_config_attrs_rst, \
+ProjectApp.get_config_classes(), project_name))
+
+and run `make html` twice. This will create the ``config_attrs.json`` file
+under project_name/data and the config.rst file under doc/source. This
+config.rst should have been listed in the sphinx index so on the second run
+this file will be converted to html containing all the config tokens.
+
+The ``config_attrs.json`` files are read for all the projects on which
+the experiment depends on, so they should exist in the repos.
 '''
 
 import operator
@@ -56,6 +104,9 @@ def _get_classses_settings_attrs(cls):
 
 
 def populate_config(json_filename, classes):
+    '''Reads the config file and loads all the config data for the classes
+    listed in `classes`.
+    '''
     with open(json_filename) as fh:
         opts = byteify(json.load(fh))
 
@@ -82,6 +133,9 @@ def populate_config(json_filename, classes):
 
 
 def apply_config(opts, classes):
+    '''Takes the config data read with :func:`populate_config` and applys
+    them to any existing class instances listed in classes.
+    '''
     for name, cls in classes.items():
         if isinstance(cls, basestring):
             obj = getattr(knspace, name)
@@ -97,16 +151,33 @@ def apply_config(opts, classes):
 
 
 def create_doc_listener(
-        sphinx_app, package, config_attrs_name='__settings_attrs__',
-        directory='data', filename='config_attrs.json'):
-    data = defaultdict(dict)
+        sphinx_app, package, directory='data', filename='config_attrs.json'):
+    '''Creates a listener for the ``__settings_attrs__`` attributes and dumps
+    their docs to ``directory/filename`` for package.
+
+    To us, in the sphinx conf.py file do::
+
+        def setup(app):
+            create_doc_listener(app, package)
+
+    where ``package`` is the module for which the docs are generated.
+
+    After docs generation the generated ``directory/filename`` must be
+    committed manually to the repo.
+    '''
+    fname = join(package.__path__[0], directory, filename)
+    try:
+        with open(fname) as fh:
+            data = json.load(fh)
+    except IOError:
+        data = {}
 
     def config_attrs_doc_listener(app, what, name, obj, options, lines):
         if not name.startswith(package.__name__):
             return
 
         if what == 'class':
-            if hasattr(obj, config_attrs_name):
+            if hasattr(obj, '__settings_attrs__'):
                 if name not in data:
                     data[name] = {n: [] for n in obj.__settings_attrs__}
                 else:
@@ -117,10 +188,11 @@ def create_doc_listener(
         elif what == 'attribute':
             parts = name.split('.')
             cls = '.'.join(parts[:-1])
-            data[cls][parts[-1]] = lines
+            if cls in data and parts[-1] in data[cls]:
+                data[cls][parts[-1]] = lines
 
     def dump_config_attrs_doc(app, exception):
-        with open(join(package.__path__[0], directory, filename), 'w') as fh:
+        with open(fname, 'w') as fh:
             json.dump(data, fh, sort_keys=True, indent=4,
                       separators=(',', ': '))
 
@@ -168,6 +240,21 @@ def write_config_attrs_rst(
         classes, package, app, exception, json_map={},
         json_default=join('data', 'config_attrs.json'),
         rst_fname=join('doc', 'source', 'config.rst')):
+    '''Walks through all the configurable classes of this experiment
+    (should be gotten from
+    :meth:`~cplcom.moa.app.ExperimentApp.get_config_classes`) and loads the
+    docs of those properties and generates a rst output file with all the
+    tokens.
+
+    For example in the sphinx conf.py file do::
+
+        def setup(app):
+            app.connect('build-finished', partial(write_config_attrs_rst, \
+ProjectApp.get_config_classes(), project_name))
+
+    where project_name is the project module and ProjectApp is the App
+    that runs the experiment.
+    '''
     docs = get_config_attrs_doc(classes, json_map, json_default)
     lines = ['{} Config'.format(package.__name__)]
     lines.append('=' * len(lines[0]))
@@ -180,6 +267,7 @@ def write_config_attrs_rst(
                                            key=operator.itemgetter(0)):
             lines.append('`{}`: {}'.format(attr, default))
             lines.extend([' ' + d for d in doc])
+        lines.append('')
 
     lines = '\n'.join(lines)
     try:

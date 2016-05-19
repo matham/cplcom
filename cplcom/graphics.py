@@ -33,94 +33,120 @@ from kivy.garden.filebrowser import FileBrowser
 from cplcom.utils import pretty_time
 
 __all__ = (
-    'CallbackPopup', 'EventFocusBehavior', 'BufferImage', 'ErrorIndicator',
-    'TimeLineSlice', 'TimeLine')
+    'EventFocusBehavior', 'BufferImage', 'ErrorIndicator', 'TimeLineSlice',
+    'TimeLine')
 
 
 Builder.load_file(join(dirname(__file__), 'graphics.kv'))
 
 
-class CallbackPopup(KNSpaceBehavior, DragBehavior, Popup):
-    ''' A popup based class.
-    '''
-    pass
-
-
 class EventFocusBehavior(FocusBehavior):
+    ''':class:`~kivy.uix.behaviors.focus.FocusBehavior` based class which
+    converts keyboard events listed in :attr:`keys` into a ``on_key_press`` or
+    ``on_key_release`` event.
 
-    __events__ = ('on_keypress', )
+    :Events:
+
+        `on_key_press`:
+            Triggered when a key that is in :attr:`keys` is pressed.
+        `on_key_release`:
+            Triggered when a key that is in :attr:`keys` is released.
+    '''
+
+    __events__ = ('on_key_press', 'on_key_release')
 
     keys = ListProperty(['spacebar', 'escape', 'enter'])
+    '''A list of strings that are potential keyboard keys, which trigger
+    key press or key release events.
+
+    Defaults to `['spacebar', 'escape', 'enter']`.
+    '''
 
     def keyboard_on_key_down(self, window, keycode, text, modifiers):
         if super(EventFocusBehavior, self).keyboard_on_key_down(
                 window, keycode, text, modifiers):
             return True
         if keycode[1] in self.keys:
-            self.dispatch('on_keypress', keycode[1])
-            return True
+            return self.dispatch('on_key_press', keycode[1])
 
-    def on_keypress(self, key):
+    def keyboard_on_key_up(self, window, keycode):
+        if super(EventFocusBehavior, self).keyboard_on_key_up(window, keycode):
+            return True
+        if keycode[1] in self.keys:
+            return self.dispatch('on_key_release', keycode[1])
+
+    def on_key_press(self, key):
+        pass
+
+    def on_key_release(self, key):
         pass
 
 
 class BufferImage(KNSpaceBehavior, Scatter):
-    ''' Class that displays an image and allows its manipulation using touch.
+    '''Class that displays an image and allows its manipulation using touch.
     It receives an ffpyplayer :py:class:`~ffpyplayer.pic.Image` object.
     '''
 
-    iw = NumericProperty(0.)
-    ''' The width of the input image. Defaults to zero.
-    '''
-    ih = NumericProperty(0.)
-    ''' The height of the input image. Defaults to zero.
-    '''
-    last_w = 0
-    ''' The width of the screen region available to display the image. Can be
+    _iw = NumericProperty(0.)
+    '''The width of the input image. '''
+
+    _ih = NumericProperty(0.)
+    '''The height of the input image. '''
+
+    _last_w = 0
+    '''The width of the screen region available to display the image. Can be
     used to determine if the screen size changed and we need to output a
-    different sized image. This gets set internally by :meth:`update_img`.
-    Defaults to zero.
-    '''
-    last_h = 0
-    ''' The width of the screen region available to display the image. This
-    gets set internally by :meth:`update_img`. Defaults to zero.
-    '''
-    fmt = ''
-    ''' The input format of the last image passed in. E.g. rgb24, yuv420p, etc.
+    different sized image.
     '''
 
-    sw_src_fmt = ''
+    _last_h = 0
+    '''The width of the screen region available to display the image. '''
 
-    swscale = None
+    _fmt = ''
+    '''The input format of the last image passed in, if the format is
+    supported. E.g. rgb24, yuv420p, etc. Otherwise, it's the forma into which
+    the unsupported image is converted into.
+    '''
+
+    _sw_src_fmt = ''
+    '''The input format of the last image passed in. '''
+
+    _swscale = None
+    '''The SWScale object that converts the image into a supported format. '''
 
     img = None
-    ''' Holds the last input :py:class:`~ffpyplayer.pic.Image`.
-    '''
+    '''Holds the last :class:`~ffpyplayer.pic.Image` passed in. '''
 
     texture_size = ObjectProperty((0, 0))
+    '''A tuple with the size of the last :class:`~ffpyplayer.pic.Image`
+    that was passed in.
+    '''
 
     img_texture = ObjectProperty(None)
-    ''' The texture into which the images are blitted if not yuv420p.
-    Defaults to None.
-    '''
-    kivy_fmt = ''
-    ''' The last kivy color format type of the image. Defaults to `''`. '''
+    '''The texture into which the images are blitted. Defaults to None. '''
+
+    _kivy_ofmt = ''
+    '''Kivy's color format of the image passed in. '''
+
     _tex_y = None
     ''' The y texture into which the y plane of the images are blitted when
-    yuv420p. Defaults to None.
+    yuv420p.
     '''
+
     _tex_u = None
     ''' The u texture into which the u plane of the images are blitted when
-    yuv420p. Defaults to None.
+    yuv420p.
     '''
+
     _tex_v = None
     ''' The v texture into which the v plane of the images are blitted when
-    yuv420p. Defaults to None.
+    yuv420p.
     '''
+
     _fbo = None
     ''' The Fbo used when blitting yuv420p images. '''
 
-    YUV_RGB_FS = b'''
+    _YUV_RGB_FS = b'''
     $HEADER$
     uniform sampler2D tex_y;
     uniform sampler2D tex_u;
@@ -141,6 +167,11 @@ class BufferImage(KNSpaceBehavior, Scatter):
 
     def update_img(self, img):
         ''' Updates the screen with a new image.
+
+        :Parameters:
+
+            `img`: :class:`~ffpyplayer.pic.Image` instance
+                The image to be displayed.
         '''
         if img is None:
             return
@@ -149,17 +180,17 @@ class BufferImage(KNSpaceBehavior, Scatter):
         img_w, img_h = img.get_size()
 
         update = False
-        if self.iw != img_w or self.ih != img_h:
+        if self._iw != img_w or self._ih != img_h:
             update = True
 
         if img_fmt not in ('yuv420p', 'rgba', 'rgb24', 'gray'):
-            swscale = self.swscale
-            if img_fmt != self.sw_src_fmt or swscale is None or update:
+            swscale = self._swscale
+            if img_fmt != self._sw_src_fmt or swscale is None or update:
                 ofmt = get_best_pix_fmt(
                     img_fmt, ('yuv420p', 'rgba', 'rgb24', 'gray'))
-                self.swscale = swscale = SWScale(
+                self._swscale = swscale = SWScale(
                     iw=img_w, ih=img_h, ifmt=img_fmt, ow=0, oh=0, ofmt=ofmt)
-                self.sw_src_fmt = img_fmt
+                self._sw_src_fmt = img_fmt
             img = swscale.scale(img)
             img_fmt = img.get_pixel_format()
 
@@ -168,13 +199,13 @@ class BufferImage(KNSpaceBehavior, Scatter):
             self.img = img
             return
 
-        if self.fmt != img_fmt:
-            self.fmt = img_fmt
-            self.kivy_ofmt = {'yuv420p': 'yuv420p', 'rgba': 'rgba',
-                              'rgb24': 'rgb', 'gray': 'luminance'}[img_fmt]
+        if self._fmt != img_fmt:
+            self._fmt = img_fmt
+            self._kivy_ofmt = {'yuv420p': 'yuv420p', 'rgba': 'rgba',
+                               'rgb24': 'rgb', 'gray': 'luminance'}[img_fmt]
             update = True
 
-        if update or w != self.last_w or h != self.last_h:
+        if update or w != self._last_w or h != self._last_h:
             scalew, scaleh = w / float(img_w), h / float(img_h)
             scale = min(min(scalew, scaleh), 1)
             pos = self.pos
@@ -182,12 +213,12 @@ class BufferImage(KNSpaceBehavior, Scatter):
             self.pos = pos
             self.apply_transform(Matrix().scale(scale, scale, 1),
                                  post_multiply=True)
-            self.iw, self.ih = img_w, img_h
-            self.last_h = h
-            self.last_w = w
+            self._iw, self._ih = img_w, img_h
+            self._last_h = h
+            self._last_w = w
 
         self.img = img
-        kivy_ofmt = self.kivy_ofmt
+        kivy_ofmt = self._kivy_ofmt
 
         if update:
             self.canvas.remove_group(str(self) + 'image_display')
@@ -207,7 +238,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
                     BindTexture(texture=self._tex_u, index=1)
                     BindTexture(texture=self._tex_v, index=2)
                     Rectangle(size=fbo.size, texture=self._tex_y)
-                fbo.shader.fs = BufferImage.YUV_RGB_FS
+                fbo.shader.fs = BufferImage._YUV_RGB_FS
                 fbo['tex_y'] = 0
                 fbo['tex_u'] = 1
                 fbo['tex_v'] = 2
@@ -234,93 +265,178 @@ class BufferImage(KNSpaceBehavior, Scatter):
             self.canvas.ask_update()
 
     def reload_buffer(self, *args):
-        ''' Reloads the last displayed image. It is called whenever the
-        screen size changes or the last image need to be recalculated.
+        ''' Reloads the last displayed image. It is and should be called
+        whenever the screen size changes or the last image need to be
+        recalculated.
         '''
         self.update_img(self.img)
 
 
 class ErrorIndicator(KNSpaceBehavior, ButtonBehavior, Widget):
+    '''A Button based class that visualizes and notifies on the current error
+    status.
 
-    display = None
+    When pressed, it stops the notification and displays in a popup the list
+    of errors/warnings/infos.
 
-    seen = BooleanProperty(True)
+    Errors are added to the log with :meth:`add_item.`
+    '''
 
-    alpha = NumericProperty(1.)
+    _display = None
 
-    queue = ListProperty([])
+    _level = StringProperty('ok')
 
-    anim = None
+    _alpha = NumericProperty(1.)
+
+    _anim = None
 
     def __init__(self, **kw):
         super(ErrorIndicator, self).__init__(**kw)
-        a = self.anim = Sequence(
-            Animation(t='in_bounce', alpha=1.),
-            Animation(t='out_bounce', alpha=0))
+        a = self._anim = Sequence(
+            Animation(t='in_bounce', _alpha=1.),
+            Animation(t='out_bounce', _alpha=0))
         a.repeat = True
-        self.display = Factory.ErrorLog(title='Error Log')
+        self._display = Factory.ErrorLog(title='Error Log')
 
-    def on_queue(self, *largs):
-        display = self.display
-        cls = Factory.ErrorLabel
-        display.container.clear_widgets()
-        add = display.container.add_widget
-        q = self.queue
-        for t in q:
-            add(cls(text=t))
+    def add_item(self, text, level='error'):
+        '''Adds a log item to the log. Upon addition, the button will notify
+        with an animation of the item.
 
-        if q and self.seen:
-            self.seen = False
-            self.anim.start(self)
+        :Parameters:
+
+            `text`: str
+                The text of the item.
+            `level`: str
+                Can be one of `error`, `warning`, or `info` indicating
+                the importance of the item. Defaults to `error`.
+        '''
+        levels = {'error': 0, 'warning': 1, 'info': 2}
+        if level not in levels:
+            raise ValueError('"{}" is not a valid level within "{}"'.
+                             format(level, levels.keys()))
+
+        if self._level == 'ok':
+            self._level = level
+            self._anim.start(self)
+        elif levels[level] < levels[self._level]:
+            self._level = level
+
+        rv = self._display.container
+        rv.data.append({'text': text, 'level': level})
 
 
 class TimeLineSlice(Widget):
+    '''A representation of a time slice of :class:`TimeLine`.
+    '''
 
     duration = NumericProperty(0)
+    '''The duration of the slice.
+    '''
 
     elapsed_t = NumericProperty(0)
+    '''The amount of time that has elapsed since the start of this slice.
+    Can be larger than :attr:`duration`, but visually it gets clipped to
+    :attr:`duration`.
+    '''
 
-    scale = NumericProperty(0)
+    _scale = NumericProperty(0)
 
     color = ObjectProperty(None, allownone=True)
+    '''If not None, it's a list of size 2 indicating the color to use for when
+    the slice is not yet done and when it's done, respectively. When not None,
+    it overwrites the values provided with :attr:`TimeLine.color_odd` and
+    ::`attr.color_even`.
+    '''
 
     _color = ListProperty([(1, 1, 1, 1), (1, 1, 1, 1)])
 
     name = StringProperty('')
+    '''The name of the slice.
+    '''
 
     text = StringProperty('')
+    '''If not empty, rather than displaying :attr:`name` when this slice is
+    active, it'll display this :attr:`text`.
+    '''
 
 
 class TimeLine(KNSpaceBehavior, BoxLayout):
+    '''A widget that displays an elapsing time line. It has named time slices
+    indicating e.g. timed stages and the time line progresses through them.
+
+    Slices are added/removed with :meth:`add_slice`, :meth:`remove_slice`, and
+    :meth:`clear_slices`. :meth:`smear_slices` is used to smear the width
+    of the slices so that they are non-linearly proportional to the provided
+    duration of each slice.
+
+    To move from one slice to another, :meth:`set_active_slice` must be called.
+    It sets all the previous slices preceding this slice as done. Slices do not
+    automatically finish, without this method being called.
+
+    Properties of
+    '''
 
     slices = ListProperty([])
+    '''The list of :class:`TimeLineSlice` visualizing all the slices.
+    '''
 
     slice_names = ListProperty([])
+    '''The given name corresponding to the slices in :attr:`slices`. They
+    should be unique.
+    '''
 
     current_slice = NumericProperty(None, allownone=True)
+    '''The index in :attr:`slices` that is the current slice.
+    '''
 
     timer = StringProperty('')
+    '''A string version of the amount of time elapsed within the current slice.
+    It gets reset when :meth:`set_active_slice` is called.
+    '''
 
     text = StringProperty('')
+    '''The name of the current slice displayed in the status field. '''
 
     color_odd = ListProperty([(0, .7, .2, 1), (.5, .5, 0, 1)])
+    '''A list of size 2 indicating the color to use when the slice is not yet
+    done and when it's done for odd slices, respectively. Each item is a 4
+    tuple indicating the rgba value (0-1) to use.
+    '''
 
     color_even = ListProperty(
         [(0, .2, .7, 1), (135 / 255., 206 / 255., 250 / 255., 1)])
+    '''A list of size 2 indicating the color to use when the slice is not yet
+    done and when it's done for even slices, respectively. Each item is a 4
+    tuple indicating the rgba value (0-1) to use.
+    '''
 
     _start_t = clock()
 
     def __init__(self, **kwargs):
         super(TimeLine, self).__init__(**kwargs)
-        Clock.schedule_interval(self.update_clock, .15)
+        Clock.schedule_interval(self._update_clock, .15)
 
-    def update_clock(self, dt):
+    def _update_clock(self, dt):
         elapsed = clock() - self._start_t
         self.timer = pretty_time(elapsed)
         if self.slices and self.current_slice is not None:
             self.slices[self.current_slice].elapsed_t = elapsed
 
     def set_active_slice(self, name, after=None):
+        '''Sets the slice that is the active slice. All the slices preceding
+        this slice will be marked as done and the timer will restart.
+
+        :Parameters:
+
+            `name`: str
+                The name of the slice to set as the current slice. It can be
+                the name of a non-existing slice.
+            `after`: str
+                If ``name`` is a non-existing slice, if ``after`` is None,
+                then all the slices preceding, and including the current slice
+                will be marked as done. Otherwise, all the slices preceding
+                and including the named slice will be marked as done.
+        '''
         try:
             idx = self.slice_names.index(name)
             for s in self.slices[:idx]:
@@ -343,14 +459,29 @@ class TimeLine(KNSpaceBehavior, BoxLayout):
         self._start_t = clock()
 
     def clear_slices(self):
+        '''Removes all the slices and clears the time line.
+        '''
         for ch in self.box.children[:]:
             self.box.remove_widget(ch)
         self.current_slice = None
         self.slice_names = []
         self.slices = []
+        self._start_t = clock()
 
-    def update_slice_attrs(self, name, **kwargs):
-        s = self.slices[self.slice_names.index(name)]
+    def update_slice_attrs(self, current_name, **kwargs):
+        '''Called to update the attributes of the :class:`TimeLineSlice`
+        instance associated with the name such as
+        :attr:`TimeLineSlice.duration` etc. Can be used to even rename the
+        slice.
+
+        :Parameters:
+
+            `name`: str
+                The name of the slice to update.
+            `**kwargs`: keyword args
+                The names and values of the slice to change.
+        '''
+        s = self.slices[self.slice_names.index(current_name)]
         for key, val in kwargs.items():
             setattr(s, key, val)
         self._update_attrs()
@@ -363,6 +494,25 @@ class TimeLine(KNSpaceBehavior, BoxLayout):
 
     def add_slice(
             self, name, before=None, duration=0, size_hint_x=None, **kwargs):
+        '''Adds a new slice to the timeline.
+
+        :Parameters:
+
+            `name`: str
+                The unique name of the new slice to create.
+            `before`: str
+                If not None, the name of the slice before which to create the
+                new slice. Otherwise, the default, it's added at the end.
+            `duration`: float, int
+                The estimated duration of the slice. Defaults to 0. A slice
+                of duration 0 is allowed.
+            `size_hint_x`: float
+                The width size_hint of the slice display. If None, the default,
+                the duration is used as the size hint, otherwise the provided
+                value is used. Since Kivy normalizes the size hints to 1.0, by
+                default the duration is used to scale the displayed width of
+                the slices to their durations.
+        '''
         if 'text' not in kwargs:
             kwargs['text'] = name
         s = TimeLineSlice(
@@ -381,20 +531,40 @@ class TimeLine(KNSpaceBehavior, BoxLayout):
         self._update_attrs()
 
     def remove_slice(self, name):
+        '''Removes the named slice.
+
+        :Parameters:
+
+            `name`: str
+                The name of the slice to remove.
+        '''
         s = self.slices.pop(self.slice_names.index(name))
         self.box.remove_widget(s)
         self._update_attrs()
 
-    def smear_slices(self):
+    def smear_slices(self, exponent=3):
+        '''Smears the width of the slices in a non-linear manner so that the
+        width of each slice become less exactly related to the duration of
+        the slice. It is useful to prevent some slices being huge and other
+        tiny.
+
+        Overall, the algorithm normalizes exponentiated durations to their mean
+        exponentiated value.
+
+        :Parameters:
+
+            `exponent`: float, int
+                The exponent to use when smearing the slices. Defaults to 3.
+        '''
         widgets = self.box.children
         vals = [w.duration for w in widgets if w.duration]
         mn, mx = min(vals), max(vals)
         center = (mn + mx) / 2.
-        a = pow(mx - center, 3)
-        offset = abs(pow(mn - center, 3) / a)
+        a = pow(mx - center, exponent)
+        offset = abs(pow(mn - center, exponent) / a)
 
         def f(x):
-            return max((2 * pow(x - center, 3) / a) + offset, offset)
+            return max((2 * pow(x - center, exponent) / a) + offset, offset)
 
         for w in widgets:
             w.size_hint_x = f(w.duration)

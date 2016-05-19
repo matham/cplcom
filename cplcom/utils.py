@@ -3,6 +3,8 @@
 '''
 from kivy.compat import PY2
 
+__all__ = ('pretty_time', 'pretty_space', 'byteify')
+
 
 def pretty_time(seconds):
     '''Returns a nice representation of a time value.

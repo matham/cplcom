@@ -99,7 +99,7 @@ class ExperimentApp(MoaApp):
 
     app_settings = ObjectProperty({})
     '''A dict that contains the :mod:`cplcom.moa.config` settings for the
-    experiment for all the configurable classes.
+    experiment for all the configurable classes. See that module for details.
 
     The keys in the dict are configuration names for a class (similarly to what
     is returned by
@@ -266,7 +266,7 @@ class ExperimentApp(MoaApp):
             err = exception
         else:
             err = '{} from {}'.format(exception, obj)
-        self.error_indicator.queue.append(str(err))
+        self.error_indicator.add_item(str(err))
 
         root = self.root_stage
         if root is not None and self.recovery_directory:

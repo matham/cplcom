@@ -4,6 +4,8 @@
 
 from moa.stage import MoaStage
 
+__all__ = ('ConfigStageBase', )
+
 
 class ConfigStageBase(MoaStage):
     '''The base class for the root stage of experiments.
@@ -15,9 +17,9 @@ class ConfigStageBase(MoaStage):
 
     @classmethod
     def get_config_classes(cls):
-        '''Method called by the :class:`cplcom.moa.app.ExperimentApp` to get
+        '''Method called by the :class:`~cplcom.moa.app.ExperimentApp` to get
         all the classes that have configuration data. This should be
-        overwritten by the dervied class.
+        overwritten by the derived class.
 
         :returns:
 
@@ -25,7 +27,7 @@ class ConfigStageBase(MoaStage):
             a class, a class instance, or a string which when called as the
             attribute of the namespace
             :attr:`~kivy.uix.behaviors.knspace.knspace` e.g.
-            ``getattr(knspace, name)``returns a class or instance.
+            ``getattr(knspace, name)`` returns a class or instance.
 
             These classes all should have ``__settings_attrs__`` attributes
             that are inspected for configuration parameters.
