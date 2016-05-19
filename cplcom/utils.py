@@ -1,14 +1,24 @@
+'''Utilities
+=============
+'''
 from kivy.compat import PY2
 
 
 def pretty_time(seconds):
-    '''
-    Returns a nice representation of a time value.
+    '''Returns a nice representation of a time value.
 
-    >>> pretty_time(36574)
-    '10:9:34.0'
+    :Parameters:
 
-    :param seconds: The number, in seconds, to convert to a string.
+        `seconds`: float, int
+            The number, in seconds, to convert to a string.
+
+    :returns:
+        String representation of the time.
+
+    For example::
+
+        >>> pretty_time(36574)
+        '10:9:34.0'
     '''
     seconds = int(seconds * 10)
     s, ms = divmod(seconds, 10)
@@ -23,18 +33,25 @@ def pretty_time(seconds):
 
 
 def pretty_space(space, is_rate=False):
-    '''
-    Returns a nice string representation of a number representing either size,
-    e.g. 10 MB, or rate, e.g. 10 MB/s.
+    '''Returns a nice string representation of a number representing either
+    size, e.g. 10 MB, or rate, e.g. 10 MB/s.
 
-    >>> pretty_space(10003045065)
-    '9.32 GB'
-    >>> tools.pretty_space(10003045065, is_rate=True)
-    '9.32 GB/s'
+    :Parameters:
 
-    :param space: The number to convert.
-    :param is_rate:
-        Whether the number represents size or rate. Defaults to False.
+        `space`: float, int
+            The number to convert.
+        `is_rate`: bool
+            Whether the number represents size or rate. Defaults to False.
+
+    :returns:
+        String representation of the space.
+
+    For example::
+
+        >>> pretty_space(10003045065)
+        '9.32 GB'
+        >>> tools.pretty_space(10003045065, is_rate=True)
+        '9.32 GB/s'
     '''
     t = '/s' if is_rate else ''
     for x in ['bytes', 'KB', 'MB', 'GB']:
@@ -45,7 +62,26 @@ def pretty_space(space, is_rate=False):
 
 
 def byteify(val, py2_only=True):
-    '''Returns a byte version of all the strings in the input.
+    '''Returns a copy of the input with all string in the input converted to
+    bytes.
+
+    :Parameters:
+
+        `val`: object
+            The object to convert.
+        `py2_only`: bool
+            If the conversion should happen in Python 2.x only. If False,
+            it's always converted. If True, the default, it's only converted to
+            bytes when running in Python 2.
+
+    For example in python 2::
+
+        >>> obj = {u'cheese': u'crackers', 4: [u'four', u'apple', 5, \
+'cheeses']}
+        >>> obj
+        {u'cheese': u'crackers', 4: [u'four', u'apple', 5, 'cheeses']}
+        >>> byteify(obj)
+        {'cheese': 'crackers', 4: ['four', 'apple', 5, 'cheeses']}
     '''
     if not PY2 and py2_only:
         return val

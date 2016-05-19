@@ -1,3 +1,8 @@
+'''Config
+==========
+
+Configuration used across Moa objects.
+'''
 
 import operator
 from inspect import isclass

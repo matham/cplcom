@@ -1,11 +1,11 @@
 .. _cplcom-moa-device:
 
 *******************
-CPLCom Moa Devices
+Moa Devices
 *******************
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    device.rst
    barst_server.rst

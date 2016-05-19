@@ -1,4 +1,6 @@
-
+'''Graphics
+============
+'''
 from os.path import join, dirname
 from time import clock
 from math import pow
@@ -39,18 +41,9 @@ Builder.load_file(join(dirname(__file__), 'graphics.kv'))
 
 
 class CallbackPopup(KNSpaceBehavior, DragBehavior, Popup):
-    ''' A popup that contains the :class:`FileBrowser` class. It allows
-    selection of files and folders.
+    ''' A popup based class.
     '''
-
-    callback = ObjectProperty(None, allownone=True)
-    ''' A function that gets called, if not `None`, when a file is selected
-    through the `on_success` and `on_submit` events of :class:`FileBrowser`.
-    :attr:`callback` will be reset to `None` when the FileBrowser popup is
-    dismissed. The parameters passed to the function is `path`, the current
-    path for the browser, and `selection`, the list of currently selected
-    files. Defaults to None.
-    '''
+    pass
 
 
 class EventFocusBehavior(FocusBehavior):
@@ -85,12 +78,12 @@ class BufferImage(KNSpaceBehavior, Scatter):
     last_w = 0
     ''' The width of the screen region available to display the image. Can be
     used to determine if the screen size changed and we need to output a
-    different sized image. This gets set internally by :math:`update_img`.
+    different sized image. This gets set internally by :meth:`update_img`.
     Defaults to zero.
     '''
     last_h = 0
     ''' The width of the screen region available to display the image. This
-    gets set internally by :math:`update_img`. Defaults to zero.
+    gets set internally by :meth:`update_img`. Defaults to zero.
     '''
     fmt = ''
     ''' The input format of the last image passed in. E.g. rgb24, yuv420p, etc.

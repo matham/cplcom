@@ -1,13 +1,18 @@
 Getting Started
 ================
 
-What is CPLCom.
+CPLCom
+--------
 
-To use CPLCom, you need to fist install it, see :ref:`install-cplcom`.
+CPLCom is a collection of utilities commonly used in the CPL
+lab. It contains various Kivy widgets and tools. It also contains
+wrappers of Moa devices for the hardware used in the lab.
 
-After it's installed, you can look at the :ref:`cplcom-examples` for examples
-on how to use it. You can find the complete documentation at :ref:`cplcom-api`.
+With such wrappers, one can use these devices as generic devices with
+experiments designed using the Moa framework. Such as the vet_cond project.
 
-Following is a simple example::
+To use CPLCom, you first need to install it, see :ref:`install-cplcom`.
 
-    >>> example
+After it's installed, it can be used like any python library. 
+See :ref:`cplcom-examples` for examples on how to use it. Complete API 
+documentation is at :ref:`cplcom-root-api`.

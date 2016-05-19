@@ -1,4 +1,7 @@
-'''The main module that starts the experiment.
+'''App
+========
+
+The app that starts an experiment.
 '''
 
 # TODO: fix restart
@@ -37,10 +40,19 @@ if not os.environ.get('KIVY_DOC_INCLUDE', None):
     Config.set('kivy', 'exit_on_escape', 0)
     Config.set('kivy', 'multitouch_on_demand', 1)
 
-__all__ = ('ExperimentApp', 'run_app')
+__all__ = ('ExperimentApp', 'run_app', 'app_error')
 
 
 def app_error(func):
+    '''A decorator which wraps the function in `try...except` and calls
+    :meth:`ExperimentApp.handle_exception` when a exception is raised.
+
+    E.g.::
+
+        @app_error
+        def do_something():
+            do_something
+    '''
     def safe_func(*largs, **kwargs):
         try:
             return func(*largs, **kwargs)
@@ -51,14 +63,15 @@ def app_error(func):
 
 
 class ExperimentApp(MoaApp):
-    '''The app which runs the experiment.
+    '''The base app which runs the experiment.
     '''
 
     __settings_attrs__ = ('inspect', )
 
     recovery_path = ConfigParserProperty(
         '', 'App', 'recovery_path', config_name, val_type=unicode_type)
-    '''The directory path to where the recovery files are saved.
+    '''The directory path to where the recovery files are saved. Its
+    value is passed to :attr:`~moa.app.MoaApp.recovery_directory`.s
 
     Defaults to `''`
     '''
@@ -78,28 +91,54 @@ class ExperimentApp(MoaApp):
     json_config_path = ConfigParserProperty(
         'config.json', 'Experiment', 'json_config_path', config_name,
         val_type=unicode_type)
-    '''The path to the config file used for the experiment.
+    '''The full path to the config file used for the experiment.
 
     Defaults to `'experiment.ini'`. This ini file contains the configuration
-    for the experiment, e.g. ITI times etc.
+    for the experiment, e.g. trial times etc.
     '''
 
     app_settings = ObjectProperty({})
+    '''A dict that contains the :mod:`cplcom.moa.config` settings for the
+    experiment for all the configurable classes.
+
+    The keys in the dict are configuration names for a class (similarly to what
+    is returned by
+    :meth:`~cplcom.moa.stages.ConfigStageBase.get_config_classes`) and its
+    values are dicts whose keys are class attributes names and values are their
+    values. These attributes are the ones listed in ``__settings_attrs__``. See
+    :mod:`cplcom.moa.config` for how configuration works.
+    '''
 
     error_indicator = ObjectProperty(None)
-    '''The error indicator that gets the error reports.
+    '''The error indicator that gets the error reports. The experiment GUI
+    should set :attr:`error_indicator` to the
+    :class:`cplcom.graphics.ErrorIndicator` instance used in the experiment
+    abd it will be used to diplay errors and warnings.
     '''
 
     inspect = BooleanProperty(False)
+    '''Enables GUI inspection. If True, it is activated by hitting ctrl-e in
+    the GUI.
+    '''
 
     filebrowser = ObjectProperty(None)
+    '''Stores a instance of :class:`PopupBrowser` that is automatically created
+    by this app class. That class is described in ``cplcom/graphics.kv``.
+    '''
 
-    close_popup = ObjectProperty(None)
+    _close_popup = ObjectProperty(None)
 
     @classmethod
     def get_config_classes(cls):
+        '''Similar to
+        :meth:`~cplcom.moa.stages.ConfigStageBase.get_config_classes` it
+        returns all the configurable classes of the experiment. It gets all
+        the configurable classes using
+        :meth:`~cplcom.moa.stages.ConfigStageBase.get_config_classes` as well
+        as the current app class.
+        '''
         d = {'app': cls}
-        if cls != ExperimentApp:
+        if cls != ExperimentApp and Factory.RootStage:
             d.update(Factory.RootStage.get_config_classes())
         return d
 
@@ -109,7 +148,7 @@ class ExperimentApp(MoaApp):
         self.recovery_directory = self.recovery_path
         resource_add_path(join(dirname(dirname(dirname(__file__))), 'media'))
         self.filebrowser = Factory.PopupBrowser()
-        self.close_popup = Popup(
+        self._close_popup = Popup(
             title='Cannot close',
             content=Label(text='Cannot close while experiment is running'),
             size_hint=(.8, .8))
@@ -126,19 +165,28 @@ class ExperimentApp(MoaApp):
             inspector.create_inspector(Window, root)
         return root
 
-    def ask_close(self, *largs, **kwargs):
+    def _ask_close(self, *largs, **kwargs):
         if (self.root_stage and self.root_stage.started and
                 not self.root_stage.finished):
-            self.close_popup.open()
+            self._close_popup.open()
             return True
         return False
 
     @app_error
     def start_stage(self, root_cls=None, restart=False):
-        '''Called to start the experiment. If restart is True, it'll try to
-        recover the experiment using :attr:`recovery_file`.
+        '''Should be called by the app to start the experiment.
 
-        It creates and starts the :class:`RootStage`.
+        :Parameters:
+
+            `root_cls`: :class:`moa.stage.MoaStage` based class
+                The root stage to be used in the experiment.
+                If None, we will look for a class called `RootStage` in the
+                kivy Factory.
+
+                Defaults to None.
+            `restart`: bool
+                If we should recover the experiment using
+                :attr:`recovery_file`. Defaults to False.
         '''
         self.root_stage = None
 
@@ -183,20 +231,35 @@ class ExperimentApp(MoaApp):
         root.step_stage()
 
     def clean_up_root_stage(self):
+        '''Class that is and should be called after the
+        :attr:`~moa.app.MoaApp.root_stage` is stopped. It performs some
+        cleanup.
+        '''
         self.root_stage = None
 
     def handle_exception(self, exception, exc_info=None, event=None, obj=None,
                          *largs):
-        '''Called whenever an exception is caught in the experiment or devices.
+        '''Should be called whenever an exception is caught in the experiment
+        or devices.
 
-        It stops the experiment and notifies of the exception. It also saves
-        the current state for recovery.
+        It stops the experiment and notifies of the exception
+        (using :attr:`error_indicator`). It also saves the current state for
+        recovery.
 
         :parameters:
 
-            `exception`: 2-tuple
-                The first element is the caught exception, the second element
-                is the traceback.
+            `exception`: string
+                The caught exception (i.e. the ``e`` in
+                ``except Exception as e``)
+            `exc_info`: stack trace
+                If not None, the return value of ``sys.exc_info()``. It is used
+                to log the stack trace.
+            `event`: :class:`moa.threads.ScheduledEvent` instance
+                If not None and the exception originated from within a
+                :class:`moa.threads.ScheduledEventLoop`, it's the
+                :class:`moa.threads.ScheduledEvent` that caused the execution.
+            `obj`: object
+                If not None, the object that caused the exception.
         '''
         Logger.error(exception, exc_info=exc_info)
         if obj is None:
@@ -215,7 +278,7 @@ class ExperimentApp(MoaApp):
             self.clean_up_root_stage()
 
 
-class CPLComHandler(ExceptionHandler):
+class _CPLComHandler(ExceptionHandler):
 
     def handle_exception(self, inst):
         if getattr(knspace, 'app', None):
@@ -223,23 +286,19 @@ class CPLComHandler(ExceptionHandler):
         return ExceptionManager.PASS
 
 
-def check_close(*largs):
-    return
-
-
 def run_app(cls):
-    '''Entrance method used to start the GUI. It creates and runs
-    :class:`ExperimentApp`.
+    '''Entrance method used to start the experiment GUI. It creates and runs
+    a :class:`ExperimentApp` type instance.
     '''
-    handler = CPLComHandler()
+    handler = _CPLComHandler()
     ExceptionManager.add_handler(handler)
 
     app = cls()
-    Window.fbind('on_request_close', app.ask_close)
+    Window.fbind('on_request_close', app._ask_close)
     try:
         app.run()
     except Exception as e:
         app.handle_exception(e, exc_info=sys.exc_info())
 
-    Window.funbind('on_request_close', app.ask_close)
+    Window.funbind('on_request_close', app._ask_close)
     ExceptionManager.remove_handler(handler)

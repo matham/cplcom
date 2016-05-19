@@ -1,4 +1,133 @@
 {
+    "cplcom.graphics.BufferImage": {
+        "YUV_RGB_FS": [
+            "The shader code used blitting yuv420p images.",
+            "    ",
+            ""
+        ],
+        "fmt": [
+            "The input format of the last image passed in. E.g. rgb24, yuv420p, etc.",
+            "    ",
+            ""
+        ],
+        "ih": [
+            "The height of the input image. Defaults to zero.",
+            "    ",
+            ""
+        ],
+        "img": [
+            "Holds the last input :py:class:`~ffpyplayer.pic.Image`.",
+            "    ",
+            ""
+        ],
+        "img_texture": [
+            "The texture into which the images are blitted if not yuv420p.",
+            "Defaults to None.",
+            ""
+        ],
+        "iw": [
+            "The width of the input image. Defaults to zero.",
+            "    ",
+            ""
+        ],
+        "kivy_fmt": [
+            "The last kivy color format type of the image. Defaults to `''`. ",
+            ""
+        ],
+        "last_h": [
+            "The width of the screen region available to display the image. This",
+            "gets set internally by :meth:`update_img`. Defaults to zero.",
+            ""
+        ],
+        "last_w": [
+            "The width of the screen region available to display the image. Can be",
+            "used to determine if the screen size changed and we need to output a",
+            "different sized image. This gets set internally by :meth:`update_img`.",
+            "Defaults to zero.",
+            ""
+        ]
+    },
+    "cplcom.graphics.CallbackPopup": {
+        "callback": [
+            "A function that gets called, if not `None`, when a file is selected",
+            "through the `on_success` and `on_submit` events of :class:`FileBrowser`.",
+            ":attr:`callback` will be reset to `None` when the FileBrowser popup is",
+            "dismissed. The parameters passed to the function is `path`, the current",
+            "path for the browser, and `selection`, the list of currently selected",
+            "files. Defaults to None.",
+            ""
+        ]
+    },
+    "cplcom.moa.app.ExperimentApp": {
+        "app_settings": [
+            "A dict that contains the :mod:`cplcom.moa.config` settings for the",
+            "experiment.",
+            ""
+        ],
+        "configparser": [
+            "The :class:`ConfigParser` instance used for configuring the devices /",
+            "system. The config file used with this instance is `'config.ini'`.",
+            ""
+        ],
+        "error_indicator": [
+            "The error indicator that gets the error reports.",
+            "    ",
+            ""
+        ],
+        "inspect": [],
+        "json_config_path": [
+            "The full path to the config file used for the experiment.",
+            "",
+            "Defaults to `'experiment.ini'`. This ini file contains the configuration",
+            "for the experiment, e.g. trial times etc.",
+            ""
+        ],
+        "recovery_file": [
+            "The last recovery file written. Used to recover the experiment.",
+            "",
+            "Defaults to `''`",
+            ""
+        ],
+        "recovery_path": [
+            "The directory path to where the recovery files are saved. Its",
+            "value is passed to :attr:`~moa.app.MoaApp.recovery_directory`.s",
+            "",
+            "Defaults to `''`",
+            ""
+        ]
+    },
+    "cplcom.moa.device.barst_server.Server": {
+        "restart": [
+            "If True (and the server is local) we will restart the server if it's",
+            "already open.",
+            "",
+            "Defaults to ``True``",
+            ""
+        ],
+        "server": [
+            "The internal barst :class:`pybarst.core.server.BarstServer`,",
+            "it read only and is automatically created.",
+            ""
+        ],
+        "server_path": [
+            "The full path to the Barst executable. Could be empty if the server",
+            "is already started, on remote computer, or if it's in the typical",
+            "`Program Files` path or came installed with the wheel. If the server is not",
+            "running, this executable is needed to launch the server.",
+            "",
+            "Defaults to `''`.",
+            ""
+        ],
+        "server_pipe": [
+            "The full path to the pipe name (to be) used by the server. Examples are",
+            "``\\remote_name\\pipe\\pipe_name``, where ``remote_name`` is the name of",
+            "the remote computer, or a period (`.`) if the server is local, and",
+            "``pipe_name`` is the name of the pipe used to create the server.",
+            "",
+            "Defaults to `''`.",
+            ""
+        ]
+    },
     "cplcom.moa.device.ffplayer.FFPyPlayerDevice": {
         "codec": [
             "When e.g. a direct show or similar stream is used as the",
@@ -104,6 +233,250 @@
         "size": [
             "The image sizes that will be passed to the video. This must be",
             "set to match the image frames that are passed to :meth:`add_frame`.",
+            ""
+        ]
+    },
+    "cplcom.moa.device.ftdi.FTDIADCDevice": {
+        "chan": [
+            "The internal :class:`pybarst.ftdi.adc.FTDIADC` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ],
+        "chan1_active": [
+            "Indicates whether channel 1 should be active and read and send back",
+            "data. Defaults to ``True``.",
+            ""
+        ],
+        "chan2_active": [
+            "Indicates whether channel 2 should be active and read and send back",
+            "data. Defaults to ``False``.",
+            ""
+        ],
+        "clock_bit": [
+            "The pin to which the clock line of the ADC device is connected at the",
+            "FTDI channel. Typically between 0 - 7. Defaults to 0.",
+            ""
+        ],
+        "data_width": [
+            "The bit depth of each data point read by the ADC device. Acceptable",
+            "values are either 16, or 24. Defaults to 24.",
+            ""
+        ],
+        "lowest_bit": [
+            "Defines which pins on the FTDI USB bus are data pins. The data pins are",
+            "connected to the FTDI bus starting from pin number :attr:`lowest_bit` until",
+            ":attr:`lowest_bit` + :attr:`num_bits`. Defaults to 0.",
+            ""
+        ],
+        "num_bits": [
+            "Indicates the number of pins on the FTDI bus that are connected to the",
+            "ADC data port. Range is [2, 8]. See :attr:`lowest_bit`.",
+            "Defaults to 2.",
+            ""
+        ],
+        "sampling_rate": [
+            "The requested sampling rate used by the ADC device for each channel.",
+            "The value controls both channels. The available sampling rates is a",
+            "function of all the other device options.",
+            "",
+            "Initially one sets it to the desired value. Before becoming activated it's",
+            "automatically updated to the actual sampling rate using the closest found",
+            "rate.",
+            "",
+            "Defaults to 1000.",
+            ""
+        ],
+        "settings": [
+            "The internal :class:`pybarst.ftdi.adc.ADCSettings` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ],
+        "transfer_size": [
+            "This parameter allows you to control over how often the ADC sends data",
+            "read back. The server will wait until :attr:`transfer_size` data points for",
+            "each channel (if two channels are active) has been accumulated and than",
+            "sends :attr:`transfer_size` (for each channel) data points to the client.",
+            ""
+        ]
+    },
+    "cplcom.moa.device.ftdi.FTDIDevChannel": {
+        "chan": [
+            "The internal :class:`pybarst.ftdi.FTDIChannel` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ],
+        "devs": [
+            "A list of the :class:`FTDISerializerDevice`, :class:`FTDIPinDevice`, and",
+            "the :class:`FTDIADCDevice` instances connected to this channel.",
+            ""
+        ],
+        "ftdi_desc": [
+            "The description of the FTDI hardware board. This a name written to the",
+            "hardware device.",
+            "",
+            ":attr:`ftdi_serial` or :attr:`ftdi_desc` are used to locate the correct",
+            "board to open. An example is `'Alder Board'` for the Alder board.",
+            ""
+        ],
+        "ftdi_serial": [
+            "The serial number of the FTDI hardware board. Can be empty if",
+            ":attr:`ftdi_desc` is provided.",
+            ""
+        ],
+        "restart": [
+            "If True we will restart the channel if it already exists. Should be set",
+            "to False if multiple users of the channel exist.",
+            "",
+            "Defaults to ``True``",
+            ""
+        ],
+        "server": [
+            "The internal barst :class:`pybarst.core.server.BarstServer`. It",
+            "must be provided to the instance.",
+            ""
+        ]
+    },
+    "cplcom.moa.device.ftdi.FTDIPinDevice": {
+        "bitmask": [
+            "A bit-mask of the pins that are active for this device, either as input",
+            "or output depending on the pin type. The high bits will be the active pins",
+            "for this device. E.g. if it's ``0b01000100`` and this is a output device,",
+            "it means that pins 2, and 6 are output pins and are controlled by this",
+            "device. The other pins will not be under the device's control.",
+            "",
+            "Defaults to zero.",
+            ""
+        ],
+        "chan": [
+            "The internal :class:`pybarst.ftdi.switch.FTDIPinIn` or",
+            ":class:`pybarst.ftdi.switch.FTDIPinOut` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ],
+        "continuous": [
+            "Whether, when reading, we should continuously read data from the device.",
+            "This is only used for a input device (:attr:`output` is False).",
+            ""
+        ],
+        "init_val": [
+            "If this is an output device, it sets the initial values (high/low) of",
+            "the device's active pins, otherwise it's ignored. For example if pins 1,",
+            "and 5 are under control of the device, and the value is 0b01001011, then",
+            "pin 1 will be initialized to high and pin 5 to low.",
+            "",
+            "Defaults to zero.",
+            ""
+        ],
+        "num_bytes": [
+            "The number of bytes that will be read from the USB bus for each read",
+            "request. Defaults to 1.",
+            ""
+        ],
+        "output": [
+            "Whether the serial device is a output or input device. If input a",
+            ":class:`pybarst.ftdi.switch.FTDIPinIn` will be used, otherwise a",
+            ":class:`pybarst.ftdi.switch.FTDIPinOut` will be used.",
+            ""
+        ],
+        "settings": [
+            "The internal :class:`pybarst.ftdi.switch.PinSettings` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ]
+    },
+    "cplcom.moa.device.ftdi.FTDISerializerDevice": {
+        "chan": [
+            "The internal :class:`pybarst.ftdi.switch.FTDISerializerIn` or",
+            ":class:`pybarst.ftdi.switch.FTDISerializerOut` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ],
+        "clock_bit": [
+            "The pin on the FTDI board to which the serial device's clock bit is",
+            "connected.",
+            "",
+            "Defaults to zero.",
+            ""
+        ],
+        "clock_size": [
+            "The hardware clock width used to clock out data. Defaults to 20.",
+            "    ",
+            ""
+        ],
+        "data_bit": [
+            "The pin on the FTDI board to which the serial device's data bit is",
+            "connected.",
+            "",
+            "Defaults to zero.",
+            ""
+        ],
+        "latch_bit": [
+            "The pin on the FTDI board to which the serial device's latch bit is",
+            "connected.",
+            "",
+            "Defaults to zero.",
+            ""
+        ],
+        "num_boards": [
+            "The number of serial boards connected in series to the FTDI device.",
+            "",
+            "Each board is a 8-channel port. Defaults to 1.",
+            ""
+        ],
+        "output": [
+            "Whether the serial device is a output or input device. If input a",
+            ":class:`pybarst.ftdi.switch.FTDISerializerIn` will be used, otherwise a",
+            ":class:`pybarst.ftdi.switch.FTDISerializerOut` will be used.",
+            ""
+        ],
+        "settings": [
+            "The internal :class:`pybarst.ftdi.switch.SerializerSettings` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ]
+    },
+    "cplcom.moa.device.mcdaq.MCDAQDevice": {
+        "SAS_chan": [
+            "The channel number of the Switch & Sense 8/8 as configured in InstaCal.",
+            "",
+            "Defaults to zero.",
+            ""
+        ],
+        "chan": [
+            "The internal :class:`pybarst.mcdaq.MCDAQChannel` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ],
+        "server": [
+            "The internal barst :class:`pybarst.core.server.BarstServer`. It",
+            "must be provided to the instance.",
+            ""
+        ]
+    },
+    "cplcom.moa.device.mfc.MFC": {
+        "chan": [
+            "The internal :class:`pybarst.serial.SerialChannel` instance.",
+            "It is read only and is automatically created.",
+            ""
+        ],
+        "mfc_id": [
+            "The MFC assigned decimal number used to communicate with that MFC.",
+            "    ",
+            ""
+        ],
+        "mfc_timeout": [
+            "How long to wait before the MFC times out. Defaults to 4000 ms.",
+            "    ",
+            ""
+        ],
+        "port_name": [
+            "The COM port name of the MFC, e.g. COM3.",
+            "    ",
+            ""
+        ],
+        "server": [
+            "The internal barst :class:`pybarst.core.server.BarstServer`. It",
+            "must be provided to the instance.",
             ""
         ]
     },
