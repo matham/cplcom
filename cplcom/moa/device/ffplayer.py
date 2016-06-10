@@ -21,8 +21,9 @@ from moa.device import Device
 from moa.logger import Logger
 from moa.threads import ScheduledEventLoop
 from cplcom.moa.device import DeviceExceptionBehavior
+from moa.device.digital import ButtonViewChannel
 
-__all__ = ('FFPyPlayerDevice', 'FFPyWriterDevice')
+__all__ = ('FFPyPlayerDevice', 'FFPyWriterDevice', 'FFPyPlayerAudioDevice')
 
 _logger_func = {'quiet': Logger.critical, 'panic': Logger.critical,
                 'fatal': Logger.critical, 'error': Logger.error,
@@ -223,6 +224,88 @@ class FFPyPlayerDevice(DeviceExceptionBehavior, Device, ScheduledEventLoop):
             self._needs_exit = True
             return True
         return False
+
+
+class FFPyPlayerAudioDevice(
+        DeviceExceptionBehavior, ButtonViewChannel, ScheduledEventLoop):
+    '''A :class:`moa.device.digital.ButtonViewChannel` wrapper around a
+    :class:`ffpyplayer.player.MediaPlayer` instance which plays a audio file.
+
+    Activating the device open the audio device. Setting the state turns
+    the audio ON or OFF.
+    '''
+
+    __settings_attrs__ = ('filename', )
+
+    _needs_exit = False
+
+    _ffplayer = None
+
+    filename = StringProperty('Tone.wav')
+    '''The full filename to the audio file.
+    '''
+
+    def _player_callback(self, mode, value):
+        if mode == 'display_sub':
+            return
+        if mode.endswith('error'):
+            try:
+                raise ValueError('FFmpeg callback: {}, {}'.format(mode, value))
+            except Exception as e:
+                self.handle_exception((e, traceback.format_exc()))
+
+    def _next_frame_run(self):
+        name = resource_find(self.filename)
+        if name is None:
+            raise ValueError('Could not find {}'.format(self.filename))
+        sleep = time.sleep
+        clock = time.clock
+
+        ff_opts = {'paused': True, 'loop': 0, 'an': False, 'vn': True,
+                   'sn': True}
+        self._ffplayer = ffplayer = MediaPlayer(
+            name, callback=self._player_callback, ff_opts=ff_opts)
+
+        # wait until loaded or failed, shouldn't take long, but just to make
+        # sure metadata is available.
+        s = clock()
+        while not self._needs_exit:
+            if ffplayer.get_metadata()['duration'] is not None:
+                break
+            if clock() - s > 10.:
+                raise ValueError('Could not read audio metadata')
+            sleep(0.005)
+
+        def finish_activate(*largs):
+            self.activation = 'active'
+        Clock.schedule_once(finish_activate, 0)
+
+        while not self._needs_exit:
+            sleep(.033)
+
+    def activate(self, *largs, **kwargs):
+        kwargs['state'] = 'activating'
+        if not super(FFPyPlayerAudioDevice, self).activate(*largs, **kwargs):
+            return False
+        self._needs_exit = False
+        self.start_thread()
+
+        def finish_deactivate(*largs):
+            self.activation = 'inactive'
+            self.stop_thread()
+        self.request_callback(self._next_frame_run, callback=finish_deactivate)
+        return True
+
+    def deactivate(self, *largs, **kwargs):
+        kwargs['state'] = 'deactivating'
+        if super(FFPyPlayerAudioDevice, self).deactivate(*largs, **kwargs):
+            self._needs_exit = True
+            return True
+        return False
+
+    def set_state(self, state, **kwargs):
+        self._ffplayer.set_pause(not state)
+        self.state = state
 
 
 class FFPyWriterDevice(DeviceExceptionBehavior, Device, ScheduledEventLoop):
