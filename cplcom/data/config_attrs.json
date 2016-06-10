@@ -26,6 +26,13 @@
             ""
         ]
     },
+    "cplcom.moa.device.ffplayer.FFPyPlayerAudioDevice": {
+        "filename": [
+            "The full filename to the audio file.",
+            "    ",
+            ""
+        ]
+    },
     "cplcom.moa.device.ffplayer.FFPyPlayerDevice": {
         "filename": [
             "The full filename to the video file or video stream.",
