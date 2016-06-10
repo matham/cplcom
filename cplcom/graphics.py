@@ -3,7 +3,10 @@
 '''
 from os.path import join, dirname
 from time import clock
+from functools import partial
+from inspect import isclass
 from math import pow
+from kivy.compat import string_types
 
 from ffpyplayer.tools import get_best_pix_fmt
 from ffpyplayer.pic import SWScale
@@ -16,12 +19,11 @@ from kivy.properties import (
     OptionProperty)
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.scatter import Scatter
-from kivy.uix.popup import Popup
+from kivy.uix.spinner import Spinner
 from kivy.graphics.texture import Texture
 from kivy.graphics import Rectangle, BindTexture
 from kivy.graphics.transformation import Matrix
 from kivy.graphics.fbo import Fbo
-from kivy.uix.behaviors import DragBehavior
 from kivy.uix.widget import Widget
 from kivy.uix.behaviors.knspace import KNSpaceBehavior
 from kivy.uix.behaviors.button import ButtonBehavior
@@ -34,10 +36,51 @@ from cplcom.utils import pretty_time
 
 __all__ = (
     'EventFocusBehavior', 'BufferImage', 'ErrorIndicator', 'TimeLineSlice',
-    'TimeLine')
+    'TimeLine', 'AutoSizedSpinner')
 
 
 Builder.load_file(join(dirname(__file__), 'graphics.kv'))
+
+
+class AutoSizedSpinner(Spinner):
+    '''Spinner that exposes :attr:`minimum_size`, which is the size
+    required to display the texture of the largest item in the spinner.
+    '''
+
+    minimum_size = ObjectProperty((0, 0))
+    '''A 2-tuple containing the texture width and height of the spinner item
+    with the largest texture. Can be used to set the spinner size to ensure it
+    will be big enough to display nicely the largest item.
+    '''
+
+    def __init__(self, **kwargs):
+        cls = kwargs.pop('option_cls', self.option_cls)
+        if isinstance(cls, string_types):
+            cls = Factory.get(cls)
+        self.option_cls = partial(self._decorate_class, cls)
+
+        def decorate_cls(*largs):
+            cls = self.option_cls
+            if isinstance(cls, string_types):
+                cls = Factory.get(cls)
+
+            if not isclass(cls) or not issubclass(cls, Widget):
+                return
+            self.option_cls = partial(self._decorate_class, cls)
+        self.fbind('option_cls', decorate_cls)
+
+        super(AutoSizedSpinner, self).__init__(**kwargs)
+
+    def _decorate_class(self, cls, *l, **kw):
+        wid = cls(*l, **kw)
+        wid.fbind('texture_size', self._update_min_size)
+        return wid
+
+    def _update_min_size(self, *largs):
+        widgets = self._dropdown.container.children + [self]
+        w = max((c.texture_size[0] for c in widgets))
+        h = max((c.texture_size[1] for c in widgets))
+        self.minimum_size = w, h
 
 
 class EventFocusBehavior(FocusBehavior):

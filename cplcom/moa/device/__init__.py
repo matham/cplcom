@@ -32,6 +32,6 @@ class DeviceExceptionBehavior(object):
         an exception.
         '''
         callback = partial(
-            App.get_running_app().handle_exception, exception[0], exception[1],
-            event, self)
-        Clock.schedule_once(callback)
+            App.get_running_app().handle_exception, exception[0],
+            exc_info=exception[1], event=event, obj=self)
+        Clock.schedule_once(lambda *largs: callback())

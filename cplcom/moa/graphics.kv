@@ -1,0 +1,64 @@
+<NamedGridLayout@KNSpaceBehavior+GridLayout>
+<KNTextInput@KNSpaceBehavior+TextInput>
+<LabeledCheck@ToggleButtonBehavior+Label>
+
+<SpinnerOpt@SpinnerOption>:
+    padding_x: '10dp'
+
+<BrowseButton@ImageButton>:
+    size_hint_x: None
+    width: self.height
+    source: 'browse.png' if self.state == 'normal' else 'browse_down.png'
+    on_release:
+        app.filebrowser.target = dirname(app.json_config_path)
+        app.filebrowser.dirselect = False
+        app.filebrowser.multiselect = False
+        app.filebrowser.callback = app.set_json_file
+        app.filebrowser.open()
+
+<RecoverCheck@GridLayout>:
+    rows: 1
+    size_hint_x: None
+    width: self.minimum_width
+    state: recover.state
+    CheckBox:
+        id: recover
+        size_hint_x: None
+        width: '34sp'
+        state: label_recover.state
+    LabeledCheck:
+        id: label_recover
+        state: recover.state
+        size_hint_x: None
+        width: self.texture_size[0]
+        padding_x: '3dp'
+        text: 'Recover'
+
+<AppStartButton@KNToggleButton>:
+    size_hint_x: None
+    width: self.height
+    background_normal: 'play.png'
+    background_down: 'pause.png'
+    background_disabled_normal: 'play.png'
+    background_disabled_down: 'pause.png'
+    background_color: [.2, .2, .2, 1] if self.disabled else [1, 1, 1, 1]
+
+<ExperimentSelection@KNSpinner>:
+    size_hint_x: None
+    width: max(self.minimum_size[0], 75)
+    padding_x: '10dp'
+    option_cls: 'SpinnerOpt'
+    text: self.values[0] if self.values else ''
+
+<ContinueButton@KNButton>:
+    padding_x: '15dp'
+    size_hint_x: None
+    width: self.texture_size[0]
+    text: 'Go'
+    size_hint_x: None
+    width: '100dp'
+
+<AppErrorIndicator@ErrorIndicator>:
+    size_hint_x: None
+    width: self.height
+    on_parent: app.error_indicator = self

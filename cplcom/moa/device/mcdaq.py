@@ -1,6 +1,7 @@
 '''Barst Measurement Computing DAQ Wrapper
 ==========================================
 '''
+from functools import partial
 from pybarst.mcdaq import MCDAQChannel
 
 from kivy.properties import NumericProperty, ObjectProperty
@@ -46,9 +47,7 @@ class MCDAQDevice(DeviceExceptionBehavior, ButtonViewPort, ScheduledEventLoop):
 
     _read_event = None
 
-    def _write_callback(self, result, kw_in):
-        value = kw_in['value']
-        mask = kw_in['mask']
+    def _write_callback(self, value, mask, result):
         self.timestamp = result
         for idx, name in self.chan_dev_map.iteritems():
             if mask & (1 << idx):
@@ -78,8 +77,9 @@ class MCDAQDevice(DeviceExceptionBehavior, ButtonViewPort, ScheduledEventLoop):
         for name in low:
             mask |= (1 << dev_map[name])
 
-        self.request_callback(self.chan.write, callback=self._write_callback,
-                              mask=mask, value=val)
+        self.request_callback(
+            self.chan.write, callback=partial(self._write_callback, val, mask),
+            mask=mask, value=val)
 
     def get_state(self):
         if self.activation != 'active':

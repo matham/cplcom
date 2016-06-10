@@ -55,11 +55,15 @@ the experiment depends on, so they should exist in the repos.
 import operator
 from inspect import isclass
 from os.path import join, dirname
-from collections import defaultdict
+import re
 from importlib import import_module
 import json
 from kivy.uix.behaviors.knspace import knspace
 from cplcom.utils import byteify
+
+config_list_pat = re.compile(
+    '\\[\\s+([^",\\]\\s{}]+,\\s+)*[^",\\]\\s{}]+\\s+\\]')
+config_whitesp_pat = re.compile('\\s')
 
 
 def _get_bases(cls):
@@ -103,6 +107,24 @@ def _get_classses_settings_attrs(cls):
     return attrs
 
 
+def _get_config_dict(name, cls, opts):
+    if isinstance(cls, basestring):
+        obj = getattr(knspace, cls)
+    else:
+        obj = cls
+
+    opt = opts.get(name, {})
+    new_vals = {}
+    if isclass(obj):
+        for attr in _get_settings_attrs(obj):
+            new_vals[attr] = opt.get(
+                attr, getattr(obj, attr).defaultvalue)
+    else:
+        for attr in _get_settings_attrs(obj.__class__):
+            new_vals[attr] = opt.get(attr, getattr(obj, attr))
+    return new_vals
+
+
 def populate_config(json_filename, classes):
     '''Reads the config file and loads all the config data for the classes
     listed in `classes`.
@@ -112,23 +134,14 @@ def populate_config(json_filename, classes):
 
     new_opts = {}
     for name, cls in classes.items():
-        if isinstance(cls, basestring):
-            obj = getattr(knspace, cls)
+        if isinstance(cls, dict):
+            new_opts[name] = {
+                k: _get_config_dict(k, c, opts.get(name, {})) for
+                k, c in cls.items()}
+        elif isinstance(cls, (list, tuple)):
+            new_opts[name] = [_get_config_dict(name, c, opts) for c in cls]
         else:
-            obj = cls
-
-        is_cls = isclass(obj)
-        opt = opts.get(name, {})
-        new_vals = {}
-        if is_cls:
-            for attr in _get_settings_attrs(obj):
-                new_vals[attr] = opt.get(
-                    attr, getattr(obj, attr).defaultvalue)
-        else:
-            for attr in _get_settings_attrs(obj.__class__):
-                new_vals[attr] = opt.get(attr, getattr(obj, attr))
-
-        new_opts[name] = new_vals
+            new_opts[name] = _get_config_dict(name, cls, opts)
     return new_opts
 
 
@@ -148,6 +161,17 @@ def apply_config(opts, classes):
 
         for k, v in opts[name].items():
             setattr(obj, k, v)
+
+
+def _whitesp_sub(m):
+    return re.sub(config_whitesp_pat, '', m.group(0))
+
+
+def dump_config(filename, data):
+    s = json.dumps(data, sort_keys=True, indent=4, separators=(',', ': '))
+    s = re.sub(config_list_pat, _whitesp_sub, s)
+    with open(filename, 'w') as fh:
+        fh.write(s)
 
 
 def create_doc_listener(
@@ -208,7 +232,18 @@ def get_config_attrs_doc(
     docs = {}
     docs_used = {}
     packages = {}
+    flat_clsses = {}
     for name, cls in classes.items():
+        if isinstance(cls, (list, tuple)):
+            for i, c in enumerate(cls):
+                flat_clsses['{} - {}'.format(name, i)] = c
+        elif isinstance(cls, dict):
+            for k, c in cls.items():
+                flat_clsses['{} - {}'.format(name, k)] = c
+        else:
+            flat_clsses[name] = cls
+
+    for name, cls in flat_clsses.items():
         if isinstance(cls, basestring):
             cls = getattr(knspace, cls)
         if not isclass(cls):

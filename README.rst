@@ -16,6 +16,3 @@ To install https://matham.github.io/cplcom/installation.html
 .. image:: https://img.shields.io/pypi/v/cplcom.svg
     :target: https://pypi.python.org/pypi/cplcom/
     :alt: Latest Version on PyPI
-
-Usage example
--------------

@@ -10,7 +10,9 @@ import moa
 import os
 import sys
 import json
-from os.path import dirname, join, isfile, expanduser
+from os.path import dirname, join, isfile, expanduser, isdir
+from os import environ
+environ['MOA_CLOCK'] = '1'
 
 from kivy.properties import (
     ObjectProperty, OptionProperty, ConfigParserProperty, StringProperty,
@@ -24,6 +26,7 @@ from kivy.uix.behaviors.knspace import knspace
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.base import ExceptionManager, ExceptionHandler
+from kivy.lang import Builder
 
 from moa.app import MoaApp
 from moa.compat import unicode_type
@@ -32,7 +35,7 @@ from moa.logger import Logger
 
 import cplcom.graphics  # required to load kv
 from cplcom.moa import config_name
-from cplcom.moa.config import populate_config, apply_config
+from cplcom.moa.config import populate_config, apply_config, dump_config
 from cplcom.utils import byteify
 
 if not os.environ.get('KIVY_DOC_INCLUDE', None):
@@ -42,8 +45,10 @@ if not os.environ.get('KIVY_DOC_INCLUDE', None):
 
 __all__ = ('ExperimentApp', 'run_app', 'app_error')
 
+Builder.load_file(join(dirname(__file__), 'graphics.kv'))
 
-def app_error(func):
+
+def app_error(app_error_func):
     '''A decorator which wraps the function in `try...except` and calls
     :meth:`ExperimentApp.handle_exception` when a exception is raised.
 
@@ -55,7 +60,7 @@ def app_error(func):
     '''
     def safe_func(*largs, **kwargs):
         try:
-            return func(*largs, **kwargs)
+            return app_error_func(*largs, **kwargs)
         except Exception as e:
             knspace.app.handle_exception(e, exc_info=sys.exc_info())
 
@@ -144,14 +149,36 @@ class ExperimentApp(MoaApp):
 
     def __init__(self, **kw):
         super(ExperimentApp, self).__init__(**kw)
+
+        def update_recovery(*l):
+            self.recovery_directory = self.recovery_path
+            self.recovery_filename = self.recovery_file
+        self.fbind('recovery_path', update_recovery)
+        self.fbind('recovery_file', update_recovery)
+
         self.knsname = 'app'
-        self.recovery_directory = self.recovery_path
+        if isdir(self.data_directory):
+            resource_add_path(self.data_directory)
         resource_add_path(join(dirname(dirname(dirname(__file__))), 'media'))
         self.filebrowser = Factory.PopupBrowser()
         self._close_popup = Popup(
             title='Cannot close',
             content=Label(text='Cannot close while experiment is running'),
             size_hint=(.8, .8))
+
+        parser = self.configparser
+        if parser is None:
+            parser = self.configparser = ConfigParser(name=config_name)
+
+        data_directory = self.data_directory
+        config_path = resources.resource_find('config.ini')
+        if not config_path:
+            config_path = join(data_directory, 'config.ini')
+            with open(config_path, 'w'):
+                pass
+
+        parser.read(config_path)
+        parser.write()
 
     def build(self, root_cls=None):
         if root_cls is None:
@@ -172,8 +199,28 @@ class ExperimentApp(MoaApp):
             return True
         return False
 
+    def set_json_file(self, path, selection, filename):
+        '''Sets the json config file when selected from the file browser.
+
+        Signature matches the :class:`PopupBrowser` callback signature so it
+        can be set as its callback.
+        '''
+        if not isdir(path) or not filename:
+            return
+        self.json_config_path = join(path, filename)
+
+    def set_recovery(self, path, selection, filename):
+        '''Sets the json config file when selected from the file browser.
+
+        Signature matches the :class:`PopupBrowser` callback signature so it
+        can be set as its callback.
+        '''
+        if not isdir(path) or not filename:
+            return
+        self.json_config_path = join(path, filename)
+
     @app_error
-    def start_stage(self, root_cls=None, restart=False):
+    def start_stage(self, root_cls=None, recover=False):
         '''Should be called by the app to start the experiment.
 
         :Parameters:
@@ -184,31 +231,15 @@ class ExperimentApp(MoaApp):
                 kivy Factory.
 
                 Defaults to None.
-            `restart`: bool
+            `recover`: bool
                 If we should recover the experiment using
                 :attr:`recovery_file`. Defaults to False.
         '''
         self.root_stage = None
 
-        parser = self.configparser
-        if parser is None:
-            parser = self.configparser = ConfigParser(name=config_name)
-
-        data_directory = expanduser(self.data_directory)
-        config_path = resources.resource_find('config.ini')
-        if not config_path:
-            config_path = join(data_directory, 'config.ini')
-            with open(config_path, 'w'):
-                pass
-
-        parser.read(config_path)
-        parser.write()
-
         settings = self.json_config_path
         if not isfile(settings):
-            with open(settings, 'w') as fh:
-                json.dump(self.app_settings, fh, sort_keys=True, indent=4,
-                          separators=(',', ': '))
+            dump_config(settings, self.app_settings)
 
         if root_cls is None:
             root = self.root_stage = Factory.get('RootStage')()
@@ -218,17 +249,38 @@ class ExperimentApp(MoaApp):
         classes = self.get_config_classes()
         new_opts = populate_config(settings, classes)
 
-        with open(settings, 'w') as fh:
-            json.dump(new_opts, fh, sort_keys=True, indent=4,
-                      separators=(',', ': '))
+        dump_config(settings, new_opts)
         self.app_settings = new_opts
 
         for k, v in new_opts['app'].items():
             setattr(self, k, v)
 
-        if restart and isfile(self.recovery_file):
-            self.load_attributes(self.recovery_file, stage=root)
+        if recover and isfile(self.recovery_file):
+            self.load_recovery()
+            self.recovery_file = self.recovery_filename = ''
         root.step_stage()
+
+    def stop_experiment(self, stage=None, recovery=True):
+        '''Can be called to stop the experiment and dump recovery information.
+
+        :Parameters:
+
+            `stage`: :class:`~moa.stage.MoaStage`
+                The stage to stop. If None, the default,
+                :attr:`~moa.app.MoaApp.root_stage` is stopped.
+            `recovery`: bool
+                Whether recovery info should be dumped to file. Defaults to
+                True.
+        '''
+        root = self.root_stage
+        if recovery and root is not None and root.started and \
+                not root.finished and self.recovery_directory:
+            self.recovery_file = self.dump_recovery(prefix='experiment_')
+
+        if root and not root.finished:
+            (stage or root).stop()
+        else:
+            self.clean_up_root_stage()
 
     def clean_up_root_stage(self):
         '''Class that is and should be called after the
@@ -261,21 +313,17 @@ class ExperimentApp(MoaApp):
             `obj`: object
                 If not None, the object that caused the exception.
         '''
-        Logger.error(exception, exc_info=exc_info)
+        if isinstance(exc_info, basestring):
+            Logger.error(exception)
+            Logger.error(exc_info)
+        else:
+            Logger.error(exception, exc_info=exc_info)
         if obj is None:
             err = exception
         else:
             err = '{} from {}'.format(exception, obj)
         self.error_indicator.add_item(str(err))
-
-        root = self.root_stage
-        if root is not None and self.recovery_directory:
-            self.recovery_file = self.dump_attributes(
-                prefix='experiment_', stage=root)
-        if root and not root.finished:
-            root.stop()
-        else:
-            self.clean_up_root_stage()
+        self.stop_experiment()
 
 
 class _CPLComHandler(ExceptionHandler):
