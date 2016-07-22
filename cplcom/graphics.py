@@ -35,7 +35,7 @@ from kivy.garden.filebrowser import FileBrowser
 from cplcom.utils import pretty_time
 
 __all__ = (
-    'EventFocusBehavior', 'BufferImage', 'ErrorIndicator', 'TimeLineSlice',
+    'EventFocusBehavior', 'BufferImage', 'ErrorIndicatorBase', 'TimeLineSlice',
     'TimeLine', 'AutoSizedSpinner')
 
 
@@ -315,7 +315,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
         self.update_img(self.img)
 
 
-class ErrorIndicator(KNSpaceBehavior, ButtonBehavior, Widget):
+class ErrorIndicatorBase(KNSpaceBehavior, ButtonBehavior, Widget):
     '''A Button based class that visualizes and notifies on the current error
     status.
 
@@ -325,7 +325,7 @@ class ErrorIndicator(KNSpaceBehavior, ButtonBehavior, Widget):
     Errors are added to the log with :meth:`add_item.`
     '''
 
-    _display = None
+    _container = None
 
     _level = StringProperty('ok')
 
@@ -334,12 +334,11 @@ class ErrorIndicator(KNSpaceBehavior, ButtonBehavior, Widget):
     _anim = None
 
     def __init__(self, **kw):
-        super(ErrorIndicator, self).__init__(**kw)
+        super(ErrorIndicatorBase, self).__init__(**kw)
         a = self._anim = Sequence(
             Animation(t='in_bounce', _alpha=1.),
             Animation(t='out_bounce', _alpha=0))
         a.repeat = True
-        self._display = Factory.ErrorLog(title='Error Log')
 
     def add_item(self, text, level='error'):
         '''Adds a log item to the log. Upon addition, the button will notify
@@ -364,8 +363,7 @@ class ErrorIndicator(KNSpaceBehavior, ButtonBehavior, Widget):
         elif levels[level] < levels[self._level]:
             self._level = level
 
-        rv = self._display.container
-        rv.data.append({'text': text, 'level': level})
+        self._container.data.append({'text': text, 'level': level})
 
 
 class TimeLineSlice(Widget):

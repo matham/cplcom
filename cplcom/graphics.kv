@@ -1,5 +1,33 @@
 #@PydevCodeAnalysisIgnore
 #:import expanduser os.path.expanduser
+#:import Factory kivy.factory.Factory
+
+
+<ClosePopup@Popup>:
+    title: 'Cannot close'
+    text: ''
+    size_hint: .6, .6
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            text: root.text
+            text_size: self.size
+            padding: '15dp', '15dp'
+            valign: 'center'
+            halign: 'center'
+        BoxLayout:
+            size_hint_y: None
+            height: dismiss.texture_size[1]
+            orientaton: 'horizontal'
+            Widget
+            Button:
+                id: dismiss
+                text: 'Close'
+                size_hint_x: None
+                width: self.texture_size[0]
+                padding: '15dp', '15dp'
+                on_release: root.dismiss()
+
 
 <CallbackPopup@KNSpaceBehavior+DragBehavior+Popup>:
     size_hint: (None, None)
@@ -46,25 +74,27 @@
         height: min(60, label.height)
         source: '{}.png'.format(root.level)
 
+<ErrorLogContainer@RecycleView>:
+    bar_width: '15dp'
+    viewclass: 'ErrorLabel'
+    RecycleBoxLayout:
+        orientation: 'vertical'
+        padding: '15dp'
+        spacing: '4dp'
+        size_hint_y: None
+        height: self.minimum_height
+        default_size_hint: (1, None)
+        initial_size: (5, 50)
+        default_size: (5, None)
+
 <ErrorLog@CallbackPopup>:
     container: container
     BoxLayout:
         orientation: 'vertical'
         padding: '15dp', '15dp'
         spacing: '10dp', '10dp'
-        RecycleView:
+        ErrorLogContainer:
             id: container
-            bar_width: '15dp'
-            viewclass: 'ErrorLabel'
-            RecycleBoxLayout:
-                orientation: 'vertical'
-                padding: '15dp'
-                spacing: '4dp'
-                size_hint_y: None
-                height: self.minimum_height
-                default_size_hint: (1, None)
-                initial_size: (5, 50)
-                default_size: (5, None)
         FloatLayout:
             size_hint_y: None
             height: close.texture_size[1]
@@ -78,22 +108,21 @@
                 pos_hint: {'right': 1}
                 y: self.parent.y
 
-<ErrorIndicator>:
+<ErrorIndicatorBase>:
     on_release:
         self._anim.cancel(self)
         self._alpha = 1
         self._level = 'ok'
-        self._display.open()
-    down: '{}_down.png'.format(self._level)
-    normal: '{}.png'.format(self._level)
-    canvas:
-        Color:
-            rgb: 1, 1, 1
-            a: self._alpha
-        Rectangle:
-            pos: self.pos
-            size: self.size
-            source: self.down if self.state == 'down' else self.normal
+    background_normal: '{}.png'.format(root._level)
+    background_down: '{}_down.png'.format(root._level)
+    background_color: 1, 1, 1, root._alpha
+
+
+<ErrorIndicatorPopup@ErrorIndicatorBase>:
+    on_release: self._display.open()
+    on_parent:
+        self._display = Factory.ErrorLog(title='Error Log')
+        self._container = self._display.container
 
 
 <ImageButton@KNSpaceBehavior+ButtonBehavior+Image>

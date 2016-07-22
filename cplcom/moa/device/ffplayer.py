@@ -143,7 +143,7 @@ class FFPyPlayerDevice(DeviceExceptionBehavior, Device, ScheduledEventLoop):
         sleep = time.sleep
         clock = time.clock
         queue = self._frame_queue = []
-        schedule = Clock.create_trigger_priority(self._service_queue)
+        schedule = Clock.create_trigger_free(self._service_queue)
         name = resource_find(self.filename)
         if name is None:
             raise ValueError('Could not find {}'.format(self.filename))

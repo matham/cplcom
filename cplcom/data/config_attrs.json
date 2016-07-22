@@ -1,4 +1,11 @@
 {
+    "cplcom.app.CPLComApp": {
+        "inspect": [
+            "Enables GUI inspection. If True, it is activated by hitting ctrl-e in",
+            "the GUI.",
+            ""
+        ]
+    },
     "cplcom.moa.app.ExperimentApp": {
         "inspect": [
             "Enables GUI inspection. If True, it is activated by hitting ctrl-e in",

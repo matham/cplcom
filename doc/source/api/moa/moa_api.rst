@@ -10,5 +10,4 @@ Moa Interface
    moa.rst
    app.rst
    stages.rst
-   config.rst
    device/device_api.rst

@@ -61,6 +61,10 @@ import json
 from kivy.uix.behaviors.knspace import knspace
 from cplcom.utils import byteify
 
+__all__ = ('populate_config', 'apply_config', 'dump_config',
+           'populate_dump_config', 'create_doc_listener',
+           'get_config_attrs_doc', 'write_config_attrs_rst')
+
 config_list_pat = re.compile(
     '\\[\\s+([^",\\]\\s{}]+,\\s+)*[^",\\]\\s{}]+\\s+\\]')
 config_whitesp_pat = re.compile('\\s')
@@ -125,12 +129,17 @@ def _get_config_dict(name, cls, opts):
     return new_vals
 
 
-def populate_config(json_filename, classes):
+def populate_config(json_filename, classes, from_file=True):
     '''Reads the config file and loads all the config data for the classes
     listed in `classes`.
     '''
-    with open(json_filename) as fh:
-        opts = byteify(json.load(fh))
+    opts = {}
+    if from_file:
+        try:
+            with open(json_filename) as fh:
+                opts = byteify(json.load(fh))
+        except IOError:
+            pass
 
     new_opts = {}
     for name, cls in classes.items():
@@ -172,6 +181,12 @@ def dump_config(filename, data):
     s = re.sub(config_list_pat, _whitesp_sub, s)
     with open(filename, 'w') as fh:
         fh.write(s)
+
+
+def populate_dump_config(filename, classes, from_file=True):
+    opts = populate_config(filename, classes, from_file=from_file)
+    dump_config(filename, opts)
+    return opts
 
 
 def create_doc_listener(

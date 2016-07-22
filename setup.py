@@ -24,5 +24,6 @@ setup(
                  'Operating System :: Microsoft :: Windows',
                  'Intended Audience :: Developers'],
     packages=find_packages(),
-    package_data={'cplcom': ['../media/*', 'graphics.kv', 'data/*']}
+    package_data={'cplcom': ['media/*', 'graphics.kv', 'data/*',
+                             'moa/graphics.kv']}
 )

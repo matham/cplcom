@@ -1,3 +1,5 @@
+#@PydevCodeAnalysisIgnore
+
 <NamedGridLayout@KNSpaceBehavior+GridLayout>
 <KNTextInput@KNSpaceBehavior+TextInput>
 <LabeledCheck@ToggleButtonBehavior+Label>
@@ -58,7 +60,7 @@
     size_hint_x: None
     width: '100dp'
 
-<AppErrorIndicator@ErrorIndicator>:
+<AppErrorIndicator@ErrorIndicatorPopup>:
     size_hint_x: None
     width: self.height
     on_parent: app.error_indicator = self
