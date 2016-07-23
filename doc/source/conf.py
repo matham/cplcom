@@ -3,7 +3,7 @@
 from sphinx.ext.autodoc import ClassDocumenter
 
 import cplcom
-from cplcom.moa.config import create_doc_listener
+from cplcom.config import create_doc_listener
 
 extensions = [
     'sphinx.ext.autodoc',
