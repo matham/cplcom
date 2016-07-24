@@ -59,6 +59,7 @@ import re
 from importlib import import_module
 import json
 from kivy.uix.behaviors.knspace import knspace
+from kivy.compat import PY2
 from cplcom.utils import byteify
 
 __all__ = ('populate_config', 'apply_config', 'dump_config',
@@ -82,7 +83,7 @@ def _get_bases(cls):
 def _get_settings_attrs(cls):
     attrs = []
     for c in [cls] + list(_get_bases(cls)):
-        if not hasattr(c, '__settings_attrs__'):
+        if '__settings_attrs__' not in c.__dict__:
                 continue
 
         for attr in c.__settings_attrs__:
@@ -95,6 +96,10 @@ def _get_settings_attrs(cls):
     return attrs
 
 
+def _decode(s):
+    return s.decode('utf8') if isinstance(s, bytes) else s
+
+
 def _get_classses_settings_attrs(cls):
     attrs = {}
     for c in [cls] + list(_get_bases(cls)):
@@ -105,7 +110,7 @@ def _get_classses_settings_attrs(cls):
             if not hasattr(cls, attr):
                 raise Exception('Missing attribute <{}> in <{}>'.
                                 format(attr, cls.__name__))
-        attrs['{}.{}'.format(c.__module__, c.__name__)] = {
+        attrs[u'{}.{}'.format(c.__module__, c.__name__)] = {
             attr: [getattr(c, attr).defaultvalue, None]
             for attr in c.__settings_attrs__}
     return attrs
@@ -217,13 +222,16 @@ def create_doc_listener(
 
         if what == 'class':
             if hasattr(obj, '__settings_attrs__'):
-                if name not in data:
-                    data[name] = {n: [] for n in obj.__settings_attrs__}
-                else:
-                    cls_data = data[name]
-                    for n in obj.__settings_attrs__:
-                        if n not in cls_data:
-                            cls_data[n] = []
+                for c, attrs in _get_classses_settings_attrs(obj).items():
+                    if not c.startswith(package.__name__):
+                        continue
+                    if name not in data:
+                        data[name] = {n: [] for n in attrs}
+                    else:
+                        cls_data = data[name]
+                        for n in attrs:
+                            if n not in cls_data:
+                                cls_data[n] = []
         elif what == 'attribute':
             parts = name.split('.')
             cls = '.'.join(parts[:-1])
@@ -266,9 +274,10 @@ def get_config_attrs_doc(
         if not _get_settings_attrs(cls):
             continue
 
-        mod = cls.__module__.split('.')[0]
-        packages[mod] = import_module(mod)
         docs_used[name] = _get_classses_settings_attrs(cls)
+        for c in docs_used[name]:
+            mod = c.split('.')[0]
+            packages[mod] = import_module(mod)
 
     for mod_name, mod in packages.items():
         f = join(mod.__path__[0], json_map.get(mod_name, json_default))
