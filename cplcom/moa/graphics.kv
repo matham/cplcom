@@ -64,3 +64,10 @@
     size_hint_x: None
     width: self.height
     on_parent: app.error_indicator = self
+    canvas:
+        Color:
+            rgba: self.background_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+            source: self.background_down if self.state == 'down' else self.background_normal

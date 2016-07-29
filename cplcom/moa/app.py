@@ -69,6 +69,10 @@ class ExperimentApp(CPLComApp, MoaApp):
             resource_add_path(self.data_directory)
         super(ExperimentApp, self).__init__(**kw)
 
+    def build(self, **kwargs):
+        self.load_json_config()
+        return super(ExperimentApp, self).build(**kwargs)
+
     def check_close(self):
         return not (self.root_stage and self.root_stage.started and
                     not self.root_stage.finished)
@@ -106,11 +110,11 @@ class ExperimentApp(CPLComApp, MoaApp):
         else:
             root = self.root_stage = root_cls()
 
-        self.load_json_config()
-
         if recover and isfile(self.recovery_file):
             self.load_recovery()
-            self.recovery_file = self.recovery_filename = ''
+            self.recovery_file = ''
+        if not self.recovery_path:
+            self.recovery_path = self.data_path
         root.step_stage()
 
     def stop_experiment(self, stage=None, recovery=True):

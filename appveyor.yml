@@ -31,6 +31,8 @@ build_script:
 
     Check-Error
 
+    $env:USE_SDL2 = 1
+
     python -c "with open(r'$PYTHON_ROOT\Lib\distutils\distutils.cfg', 'wb') as fh: fh.write(b'[build]\ncompiler = mingw32\n')"
 
     Check-Error

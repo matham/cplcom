@@ -147,9 +147,10 @@ class CPLComApp(KNSpaceBehavior, App):
         if parser is None:
             parser = self.configparser = ConfigParser(name=config_name)
 
-        self.ensure_config_file(self.json_config_path)
         parser.read(self.ensure_config_file('config.ini'))
         parser.write()
+        self.json_config_path = parser.get('Experiment', 'json_config_path')
+        self.ensure_config_file(self.json_config_path)
 
     def ensure_config_file(self, filename):
         if not resources.resource_find(filename):
@@ -168,8 +169,8 @@ class CPLComApp(KNSpaceBehavior, App):
 
     def load_json_config(self):
         classes = self.get_config_classes()
-        self.app_settings = populate_dump_config(self.json_config_path,
-                                                 classes)
+        self.app_settings = populate_dump_config(
+            self.ensure_config_file(self.json_config_path), classes)
 
         for k, v in self.app_settings['app'].items():
             setattr(self, k, v)
@@ -274,6 +275,8 @@ def run_app(cls, cleanup=None):
             cleanup()
         except Exception as e:
             app.handle_exception(e, exc_info=sys.exc_info())
+    if app.configparser:
+        app.configparser.write()
 
     Window.funbind('on_request_close', app._ask_close)
     ExceptionManager.remove_handler(handler)
