@@ -11,5 +11,6 @@
    config.rst
    app.rst
    graphics.rst
+   player.rst
    utils.rst
    moa/moa_api.rst
