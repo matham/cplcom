@@ -4,7 +4,7 @@
 Module for playing and recording video.
 '''
 
-from os.path import isfile, join, abspath, expanduser
+from os.path import isfile, join, abspath, expanduser, splitext
 import logging
 import sys
 from threading import Thread, RLock
@@ -200,7 +200,8 @@ class Player(EventDispatcher):
         pass
 
     @app_error
-    def save_screenshot(self, path, selection, filename):
+    def save_screenshot(self, path, selection, filename, codec='bmp',
+                        pix_fmt='bgr24'):
         fname = join(abspath(path), filename)
         if self.last_image is None:
             raise ValueError('No image acquired')
@@ -209,15 +210,18 @@ class Player(EventDispatcher):
         fmt = img.get_pixel_format()
         w, h = img.get_size()
 
-        codec = get_format_codec(fname)
-        ofmt = get_supported_pixfmts(codec, fmt)[0]
+        if not codec:
+            codec = get_format_codec(fname)
+            ofmt = get_supported_pixfmts(codec, fmt)[0]
+        else:
+            ofmt = get_supported_pixfmts(codec, pix_fmt or fmt)[0]
         if ofmt != fmt:
             sws = SWScale(w, h, fmt, ofmt=ofmt)
             img = sws.scale(img)
             fmt = ofmt
 
         out_opts = {'pix_fmt_in': fmt, 'width_in': w, 'height_in': h,
-                    'frame_rate': (30, 1)}
+                    'frame_rate': (30, 1), 'codec': codec}
         writer = MediaWriter(fname, [out_opts])
         writer.write_frame(img=img, pts=0, stream=0)
         writer.close()
@@ -491,6 +495,24 @@ class FFmpegPlayer(Player):
             self.dshow_opts = {play_filename:
                                {dshow_opt: self.parse_dshow_opt(dshow_opt)}}
         super(FFmpegPlayer, self).__init__(**kw)
+        self._update_summary()
+
+    def on_play_filename(self, *largs):
+        self._update_summary()
+
+    def on_file_fmt(self, *largs):
+        self._update_summary()
+
+    def _update_summary(self):
+        fname = self.play_filename
+        if not self.file_fmt:
+            fname = splitext(fname)[0]
+
+        if len(fname) > 8:
+            name = fname[:4] + '...' + fname[-4:]
+        else:
+            name = fname
+        self.player_summery = 'FFMpeg-{}'.format(name)
 
     def refresh_dshow(self):
         counts = defaultdict(int)
@@ -747,6 +769,10 @@ class RTVPlayer(Player):
         super(RTVPlayer, self).__init__(**kwargs)
         self.metadata_play = self.metadata_play_used = \
             VideoMetadata('gray', 0, 0, 0)
+        self.on_port()
+
+    def on_port(self, *largs):
+        self.player_summery = 'RTV-Port{}'.format(self.port)
 
     def play_thread_run(self):
         self.frames_played = 0
@@ -877,6 +903,7 @@ class PTGrayPlayer(Player):
 
     def __init__(self, **kwargs):
         super(PTGrayPlayer, self).__init__(**kwargs)
+        self.on_ip()
         if CameraContext is not None:
             self.start_config()
 
@@ -884,10 +911,12 @@ class PTGrayPlayer(Player):
         self.ask_config('serial')
 
     def on_ip(self, *largs):
+        self.player_summery = 'PT-{}'.format(self.ip)
         self.ask_config('serial')
 
     def start_config(self, *largs):
         self.config_queue = Queue()
+        self.config_active = []
         thread = self.config_thread = Thread(
             target=self.config_thread_run, name='Config thread')
         thread.start()
@@ -995,6 +1024,8 @@ class PTGrayPlayer(Player):
                     if opts['fmt'] not in self.ffmpeg_pix_map:
                         raise Exception('Pixel format {} cannot be converted'.
                                         format(opts['fmt']))
+                    if opts['fmt'] == 'yuv411':
+                        raise ValueError('yuv411 is not currently supported')
                     metadata = VideoMetadata(
                         self.ffmpeg_pix_map[opts['fmt']], opts['width'],
                         opts['height'], 30.0)
@@ -1063,8 +1094,10 @@ class PTGrayPlayer(Player):
                 if ff_fmt == 'yuv444p':
                     buff = image['buffer']
                     img = Image(
-                        plane_buffers=[buff[2::3], buff[1::3], buff[0::3]],
+                        plane_buffers=[buff[1::3], buff[0::3], buff[2::3]],
                         pix_fmt=ff_fmt, size=(image['cols'], image['rows']))
+                elif pix_fmt == 'yuv411':
+                    raise ValueError('yuv411 is not currently supported')
                 else:
                     img = Image(
                         plane_buffers=[image['buffer']], pix_fmt=ff_fmt,
