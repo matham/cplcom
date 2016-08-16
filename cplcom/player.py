@@ -126,6 +126,8 @@ class Player(EventDispatcher):
     Used to give unique filenames for each video file.
     '''
 
+    record_filename = ''
+
     config_active = BooleanProperty(False)
 
     display_trigger = None
@@ -268,7 +270,7 @@ class Player(EventDispatcher):
 
         self.record_state = 'starting'
         self.image_queue = Queue()
-        filename = join(
+        self.record_filename = filename = join(
             self.record_directory,
             self.record_fname.replace('{}', self.record_fname_count))
         thread = self.record_thread = Thread(
@@ -336,8 +338,8 @@ class Player(EventDispatcher):
             while getattr(self, thread + '_state') == 'starting':
                 sleep(.01)
         else:
-            if e and getattr(self, thread + '_state') in (thread + 'ing',
-                                                          'starting'):
+            if e and getattr(self, thread + '_state') in (
+                    thread + 'ing', 'starting', 'stopping'):
                 src = '{}er'.format(thread.capitalize())
                 Clock.schedule_once(partial(
                     self.err_callback, msg='%s: %s' % (self, src),
@@ -566,10 +568,17 @@ class FFmpegPlayer(Player):
         if mode == 'display_sub':
             return
         if mode.endswith('error'):
-            Clock.schedule_once(partial(
-                self.err_callback, msg='Player: {}, {}'.format(mode, value)),
-                0)
-        self._request_stop('play')
+            try:
+                raise Exception('Player: {}, {}'.format(mode, value))
+            except Exception as e:
+                Clock.schedule_once(partial(
+                    self.err_callback,
+                    msg='Player: {}, {}'.format(mode, value),
+                    exc_info=sys.exc_info(), e=e),
+                    0)
+
+        if not mode == 'eof':
+            self._request_stop('play')
 
     def play_thread_run(self):
         self.frames_played = 0
@@ -875,14 +884,14 @@ class PTGrayPlayer(Player):
     :attr:`serial` must be provided.
     '''
 
-    serials = []
+    serials = ListProperty([])
 
     ip = StringProperty('')
     '''The ip address of the camera to open. Either :attr:`ip` or
     :attr:`serial` must be provided.
     '''
 
-    ips = []
+    ips = ListProperty([])
 
     cam_config_opts = DictProperty({})
     '''The configuration options used to configure the camera after opening.
@@ -1062,7 +1071,14 @@ class PTGrayPlayer(Player):
 
             c.start_capture()
             while self.play_state != 'stopping':
-                c.read_next_image()
+                try:
+                    c.read_next_image()
+                except Exception as e:
+                    self.frames_skipped += 1
+                    Clock.schedule_once(partial(
+                        self.err_callback, msg='%s: PTGrayVideo' % (self, ),
+                        exc_info=sys.exc_info(), e=e), 0)
+                    continue
                 if not started:
                     self.ts_play = ivl_start = clock()
                     self.change_status('play', True)

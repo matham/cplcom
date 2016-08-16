@@ -125,8 +125,10 @@
         self._container = self._display.container
 
 
-<ImageButton@KNSpaceBehavior+ButtonBehavior+Image>
-<ImageToggleButton@KNSpaceBehavior+ToggleButtonBehavior+Image>
+<ImageButton@KNSpaceBehavior+ButtonBehavior+Image>:
+    color: self.color[:-1] + ([1] if not self.disabled else [.7])
+<ImageToggleButton@KNSpaceBehavior+ToggleButtonBehavior+Image>:
+    color: self.color[:-1] + ([1] if not self.disabled else [.7])
 
 <SizedTextInput@TextInput>:
     size_hint_y: None

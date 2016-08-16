@@ -68,16 +68,22 @@ class AutoSizedSpinner(Spinner):
                 return
             self.option_cls = partial(self._decorate_class, cls)
         self.fbind('option_cls', decorate_cls)
+        self.fbind('texture_size', self._update_min_size)
 
         super(AutoSizedSpinner, self).__init__(**kwargs)
+        self._update_min_size()
 
     def _decorate_class(self, cls, *l, **kw):
         wid = cls(*l, **kw)
         wid.fbind('texture_size', self._update_min_size)
+        self._update_min_size()
         return wid
 
     def _update_min_size(self, *largs):
-        widgets = self._dropdown.container.children + [self]
+        if not self._dropdown.container:
+            widgets = [self]
+        else:
+            widgets = self._dropdown.container.children + [self]
         w = max((c.texture_size[0] for c in widgets))
         h = max((c.texture_size[1] for c in widgets))
         self.minimum_size = w, h
@@ -136,6 +142,10 @@ class BufferImage(KNSpaceBehavior, Scatter):
     _ih = NumericProperty(0.)
     '''The height of the input image. '''
 
+    available_size = ObjectProperty(None, allownone=True)
+    '''The size that the widget has available for drawing.
+    '''
+
     _last_w = 0
     '''The width of the screen region available to display the image. Can be
     used to determine if the screen size changed and we need to output a
@@ -144,6 +154,10 @@ class BufferImage(KNSpaceBehavior, Scatter):
 
     _last_h = 0
     '''The width of the screen region available to display the image. '''
+
+    image_size =  ObjectProperty((0, 0))
+    '''The size of the last image.
+    '''
 
     _fmt = ''
     '''The input format of the last image passed in, if the format is
@@ -220,7 +234,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
             return
 
         img_fmt = img.get_pixel_format()
-        img_w, img_h = img.get_size()
+        self.image_size = img_w, img_h = img.get_size()
 
         update = False
         if self._iw != img_w or self._ih != img_h:
@@ -237,7 +251,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
             img = swscale.scale(img)
             img_fmt = img.get_pixel_format()
 
-        w, h = self.size
+        w, h = self.available_size or self.size
         if (not w) or not h:
             self.img = img
             return
@@ -251,9 +265,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
         if update or w != self._last_w or h != self._last_h:
             scalew, scaleh = w / float(img_w), h / float(img_h)
             scale = min(min(scalew, scaleh), 1)
-            pos = self.pos
             self.transform = Matrix()
-            self.pos = pos
             self.apply_transform(Matrix().scale(scale, scale, 1),
                                  post_multiply=True)
             self._iw, self._ih = img_w, img_h

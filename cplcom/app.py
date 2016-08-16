@@ -164,6 +164,8 @@ class CPLComApp(KNSpaceBehavior, App):
         '''The install dependent path to the config data.
         '''
         if hasattr(sys, '_MEIPASS'):
+            if isdir(join(sys._MEIPASS, 'data')):
+                return join(sys._MEIPASS, 'data')
             return sys._MEIPASS
         return join(dirname(inspect.getfile(self.__class__)), 'data')
 
