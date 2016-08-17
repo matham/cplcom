@@ -213,7 +213,7 @@ class CPLComApp(KNSpaceBehavior, App):
         self.json_config_path = join(path, filename)
 
     def handle_exception(self, exception, exc_info=None, event=None, obj=None,
-                         error_indicator='', *largs):
+                         error_indicator='', level='error', *largs):
         '''Should be called whenever an exception is caught in the app.
 
         :parameters:

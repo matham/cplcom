@@ -1075,9 +1075,6 @@ class PTGrayPlayer(Player):
                     c.read_next_image()
                 except Exception as e:
                     self.frames_skipped += 1
-                    Clock.schedule_once(partial(
-                        self.err_callback, msg='%s: PTGrayVideo' % (self, ),
-                        exc_info=sys.exc_info(), e=e), 0)
                     continue
                 if not started:
                     self.ts_play = ivl_start = clock()
