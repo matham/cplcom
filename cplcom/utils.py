@@ -2,8 +2,14 @@
 =============
 '''
 from kivy.compat import PY2
+from kivy.utils import get_color_from_hex
+from kivy.properties import StringProperty
+from kivy.factory import Factory
+from kivy.event import EventDispatcher
+import json
 
-__all__ = ('pretty_time', 'pretty_space', 'byteify')
+__all__ = ('pretty_time', 'pretty_space', 'byteify', 'json_dumps',
+           'json_loads', 'ColorTheme')
 
 
 def pretty_time(seconds):
@@ -97,3 +103,38 @@ def byteify(val, py2_only=True):
         return val.encode('utf-8')
     else:
         return val
+
+
+def json_dumps(value):
+    return json.dumps(value, sort_keys=True, indent=4, separators=(',', ': '))
+
+
+def json_loads(value):
+    decoded = json.loads(value)
+    return byteify(decoded, True)
+
+
+class ColorTheme(EventDispatcher):
+
+    primary_dark = StringProperty(get_color_from_hex('00796BFF'))
+
+    primary = StringProperty(get_color_from_hex('009688FF'))
+
+    primary_light = StringProperty(get_color_from_hex('B2DFDBFF'))
+
+    primary_text = StringProperty(get_color_from_hex('FFFFFFFF'))
+
+    accent = StringProperty(get_color_from_hex('E040FBFF'))
+
+    text_primary = StringProperty(get_color_from_hex('212121FF'))
+
+    text_secondary = StringProperty(get_color_from_hex('757575FF'))
+
+    divider = StringProperty(get_color_from_hex('BDBDBDFF'))
+
+
+class KVBehavior(object):
+    pass
+
+Factory.register(classname='ColorTheme', cls=ColorTheme)
+Factory.register(classname='KVBehavior', cls=KVBehavior)
