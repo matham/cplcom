@@ -33,6 +33,49 @@
     size_hint: (None, None)
     size: (min(self.parent.width, 800), min(self.parent.height, 600)) if self.parent else (100, 100)
 
+<YesNoPrompt@ModalView>:
+    msg: 'Are you sure?'
+    affirm: 'Yes'
+    deny: 'No'
+    callback: None
+    size_hint: None, None
+    size: box.minimum_size
+    callback: None
+    content: box
+    BoxLayout:
+        id: box
+        orientation: 'vertical'
+        padding: '20dp'
+        spacing: '15dp'
+        size_hint: None, None
+        size: self.minimum_size
+        Label:
+            text: root.msg
+            padding: '15dp', '15dp'
+            size_hint: None, None
+            size: self.texture_size
+        BoxLayout:
+            padding: '20dp'
+            spacing: '15dp'
+            size_hint: None, None
+            size: self.minimum_size
+            Button:
+                text: root.affirm
+                padding: '15dp', '15dp'
+                size_hint: None, None
+                size: self.texture_size
+                on_release:
+                    if root.callback: root.callback(True)
+                    root.dismiss()
+            Button:
+                text: root.deny
+                padding: '15dp', '15dp'
+                size_hint: None, None
+                size: self.texture_size
+                on_release:
+                    if root.callback: root.callback(False)
+                    root.dismiss()
+
 <PopupBrowser@CallbackPopup>:
     target: expanduser('~')
     dirselect: False
@@ -44,11 +87,11 @@
         multiselect: root.multiselect
         path: root.target or expanduser('~')
         on_success:
-            if root.callback: root.callback(self.path, self.selection, self.filename)
             if self.selection or self.filename: root.dismiss()
-        on_submit:
             if root.callback: root.callback(self.path, self.selection, self.filename)
+        on_submit:
             root.dismiss()
+            if root.callback: root.callback(self.path, self.selection, self.filename)
         on_cancel_state: root.dismiss()
 
 
@@ -108,11 +151,13 @@
                 pos_hint: {'right': 1}
                 y: self.parent.y
 
-<ErrorIndicatorBase>:
+<ErrorIndicatorBehavior>:
     on_release:
         self._anim.cancel(self)
         self._alpha = 1
         self._level = 'ok'
+
+<ErrorIndicatorBase>:
     background_normal: '{}.png'.format(root._level)
     background_down: '{}_down.png'.format(root._level)
     background_color: 1, 1, 1, root._alpha
@@ -130,12 +175,216 @@
 <ImageToggleButton@KNSpaceBehavior+ToggleButtonBehavior+Image>:
     color: self.color[:-1] + ([1] if not self.disabled else [.7])
 
-<SizedTextInput@TextInput>:
+<FlatColorBehavior@KVBehavior>:
+    scale_down_color: False
+    flip_scale: False
+    flat_color: [1, 1, 1, 1]
+    normal_color: self.flat_color[:3] + [.54] if self.disabled else self.flat_color
+    down_color: [self.normal_color[0] * .7, self.normal_color[1] * .7, self.normal_color[2] * .7, self.normal_color[3]]
+    color: self.normal_color if not self.scale_down_color else (self.normal_color if self.state == 'normal' and not self.flip_scale or self.state == 'down' and self.flip_scale else self.down_color)
+<IconSizedBehavior@KVBehavior>:
+    auto_size_width: True
+    size_hint_x: None if self.auto_size_width else 1.
+    width: self.image_ratio * self.height if self.auto_size_width else self.width
+
+<FlatImage@IconSizedBehavior+FlatColorBehavior+KNSpaceBehavior+Image>
+<FlatImageToggleButton@HighightButtonBehavior+ToggleButtonBehavior+FlatImage>
+<FlatImageButton@HighightButtonBehavior+ButtonBehavior+FlatImage>
+
+<FlatErrorIndicatorPopup@HighightButtonBehavior+ErrorIndicatorBehavior+IconSizedBehavior+FlatColorBehavior+KNSpaceBehavior+Image>:
+    on_release: self._display.open()
+    flat_color: self.flat_color[:3] + [self._alpha]
+    on_parent:
+        self._display = Factory.ErrorLog(title='Error Log')
+        self._container = self._display.container
+
+<IconSwitchBehavior@HighightButtonBehavior+FlatColorBehavior+KNSpaceBehavior+ToggleButtonBehavior+BoxLayout>:
+    source_down: ''
+    source_normal: ''
+    auto_size_width: True
+    size_hint_x: None if self.auto_size_width else 1.
+    width: self.minimum_width if self.auto_size_width else self.width
+    canvas:
+        Color:
+            a: .2
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    Image:
+        color: root.normal_color if root.state == 'down' else root.down_color
+        source: root.source_normal
+        size_hint_y: .8 if root.state == 'down' else 1
+        size_hint_x: None if root.auto_size_width else 1.
+        width: self.image_ratio * self.height if root.auto_size_width else self.width
+    Image:
+        color: root.normal_color if root.state == 'normal' else root.down_color
+        source: root.source_down
+        size_hint_y: .8 if root.state == 'normal' else 1
+        size_hint_x: None if root.auto_size_width else 1.
+        width: self.image_ratio * self.height if root.auto_size_width else self.width
+
+<-FlatLabel@Label>:
+    center_texture: True
+    scale_down_color: False
+    flip_scale: False
+    flat_color: [1, 1, 1, 1]
+    normal_color: self.flat_color[:3] + [.54] if self.disabled else self.flat_color
+    down_color: [self.normal_color[0] * .7, self.normal_color[1] * .7, self.normal_color[2] * .7, self.normal_color[3]]
+    color: self.normal_color if not self.scale_down_color else (self.normal_color if self.state == 'normal' and not self.flip_scale or self.state == 'down' and self.flip_scale else self.down_color)
+    canvas:
+        Color:
+            rgba: self.color
+        Rectangle:
+            texture: self.texture
+            size: self.texture_size
+            pos: (int(self.center_x - self.texture_size[0] / 2.) if self.center_texture else self.x), int(self.center_y - self.texture_size[1] / 2.)
+
+<FlatToggleButton@HighightButtonBehavior+KNSpaceBehavior+ToggleButtonBehavior+FlatLabel>:
+    flat_background_color: [1, 1, 1, 0]
+    canvas.before:
+        Color:
+            rgba: self.flat_background_color
+        Rectangle:
+            pos: self.pos
+            size: self.size
+<FlatButton@HighightButtonBehavior+KNSpaceBehavior+ButtonBehavior+FlatLabel>:
+    flat_background_color: [1, 1, 1, 0]
+    canvas.before:
+        Color:
+            rgba: self.flat_background_color
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<FlatDivider@Widget>:
+    orientation: 'vertical'
+    size_hint_x: None if self.orientation == 'vertical' else 1
+    width: '2dp' if self.orientation == 'vertical' else self.width
+    size_hint_y: None if self.orientation == 'horizontal' else 1
+    height: '2dp' if self.orientation == 'horizontal' else self.height
+    color: [1, 1, 1, 1]
+    canvas:
+        Color:
+            rgba: root.color
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<FlatSplitterStrip@FlatColorBehavior+KNSpaceBehavior+ButtonBehavior+BoxLayout>:
+    flat_color: self.parent.flat_color if self.parent else [1, 1, 1, 1]
+    flat_divider_color: self.parent.flat_divider_color if self.parent else [1, 1, 1, 1]
+    orientation: 'vertical' if self.parent and self.parent.sizable_from in ('left', 'right') else 'horizontal'
+    FlatDivider:
+        color: root.flat_divider_color
+        orientation: root.orientation
+    Image:
+        color: root.color
+        source: 'flat_drag_vertical.png' if root.orientation == 'vertical' else 'flat_drag_horizontal.png'
+        size_hint_y: None if root.orientation == 'vertical' else 1
+        height: self.width / self.image_ratio if root.orientation == 'vertical' else self.height
+        size_hint_x: None if root.orientation == 'horizontal' else 1
+        width: self.height * self.image_ratio if root.orientation == 'horizontal' else self.width
+    FlatDivider:
+        color: root.flat_divider_color
+        orientation: root.orientation
+
+<FlatSplitter@Splitter>:
+    strip_cls: 'FlatSplitterStrip'
+    flat_color: [1, 1, 1, 1]
+    flat_divider_color: [1, 1, 1, 0]
+
+<FlatDropDown@EmptyDropDown>:
+    auto_width: False
+    size_hint: None, None
+    size: box.size
+    flat_color: [0, 0, 0, 1]
+    flat_border_color: [1, 1, 1, 1]
+    canvas.before:
+        Color:
+            rgba: self.flat_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    canvas:
+        Color:
+            rgba: self.flat_border_color
+        Line:
+            width: 1
+            points: [self.x, self.y, self.x + self.width, self.y, self.x + self.width, self.y + self.height, self.x, self.y + self.height, self.x, self.y]
+    BoxLayout:
+        id: box
+        _init_container: setattr(root, 'container', self)
+        orientation: 'vertical'
+        size_hint: None, None
+        size: self.minimum_size
+        padding: '5dp'
+        spacing: '5dp'
+
+<FlatSpinnerButton@FlatButton>:
+    size_hint_y: None
+    height: self.texture_size[1]
+    size_hint_min_x: self.texture_size[0]
+    center_texture: False
+
+<FlatSpinnerButton@SpinnerBehavior+FlatButton>
+<FlatSpinner@KNSpaceBehavior+BoxLayout>:
+    flat_color: [1, 1, 1, 1]
+    flat_menu_color: [1, 1, 1, 1]
+    flat_drop_background_color: [1, 1, 1, 1]
+    flat_drop_text_color: [1, 1, 1, 1]
+    flat_border_color: [1, 1, 1, 1]
+    text_autoupdate: False
+    values: []
+    text: ''
+    FlatSpinnerButton:
+        id: spinner
+        text_autoupdate: root.text_autoupdate
+        values: root.values
+        on_values: root.values = self.values
+        text: root.text
+        on_text: root.text = self.text
+        flat_color: root.flat_color
+        scale_down_color: True
+        size_hint_x: None
+        width: self.minimum_size[0]
+        padding_x: '5dp'
+        dropdown_cls: lambda *l, **kw: Factory.FlatDropDown(*l, flat_color=root.flat_drop_background_color, flat_border_color=root.flat_border_color, **kw)
+        option_cls: lambda *l, **kw: Factory.FlatSpinnerButton(*l, flat_color=root.flat_drop_text_color, **kw)
+    FlatImageButton:
+        state: spinner.state
+        on_press:
+            spinner._do_press()
+            spinner.dispatch('on_press')
+        on_release:
+            spinner._do_release()
+            spinner.dispatch('on_release')
+        flat_color: root.flat_menu_color
+        scale_down_color: True
+        source: 'flat_menu_down.png'
+
+
+<-FlatTextInput>:
+    canvas.before:
+        Color:
+            rgba: self.cursor_color
+        Rectangle:
+            size: (self.size[0], sp(2))
+            pos: self.pos[0], self.cursor_pos[1] - self.line_height - sp(2)
+        Color:
+            rgba: (self.cursor_color if self.focus and not self.cursor_blink else (0, 0, 0, 0))
+        Rectangle:
+            pos: [int(x) for x in self.cursor_pos]
+            size: sp(2), -self.line_height
+        Color:
+            rgba: self.disabled_foreground_color if self.disabled else (self.hint_text_color if not self.text and not self.focus else self.foreground_color)
+
+<SizedTextInputBehavior@KVBehavior>:
     size_hint_y: None
     height: self.minimum_height
     multiline: False
     write_tab: False
-
+<FlatSizedTextInput@SizedTextInputBehavior+KNSpaceBehavior+FlatTextInput>
+<SizedTextInput@SizedTextInputBehavior+TextInput>
 <KNSizedTextInput@KNSpaceBehavior+SizedTextInput>
 <KNButton@KNSpaceBehavior+Button>
 <KNToggleButton@KNSpaceBehavior+ToggleButton>
@@ -249,6 +498,9 @@
 
 <BufferImage>:
     canvas:
+        Color:
+            rgba: 1, 1, 1, 1
         Rectangle:
             size: root.texture_size
             texture: root.img_texture
+            pos: self.pos

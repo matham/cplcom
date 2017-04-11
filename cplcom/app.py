@@ -25,7 +25,6 @@ from kivy.properties import (
     BooleanProperty, NumericProperty, ListProperty)
 from kivy import resources
 from kivy.modules import inspector
-from kivy.core.window import Window
 from kivy.resources import resource_add_path
 from kivy.factory import Factory
 from kivy.uix.behaviors.knspace import knspace, KNSpaceBehavior
@@ -37,7 +36,8 @@ from kivy.clock import Clock
 
 import cplcom.graphics  # required to load kv
 from cplcom import config_name
-from cplcom.config import populate_dump_config
+from cplcom.utils import ColorTheme
+from cplcom.config import populate_dump_config, apply_config, dump_config
 if not os.environ.get('KIVY_DOC_INCLUDE', None):
     Clock.max_iteration = 20
 
@@ -113,6 +113,13 @@ class CPLComApp(KNSpaceBehavior, App):
     by this app class. That class is described in ``cplcom/graphics.kv``.
     '''
 
+    yesno_prompt = ObjectProperty(None)
+    '''Stores a instance of :class:`YesNoPrompt` that is automatically created
+    by this app class. That class is described in ``cplcom/graphics.kv``.
+    '''
+
+    theme = ObjectProperty(ColorTheme(), rebind=True)
+
     _close_popup = ObjectProperty(None)
 
     _close_message = StringProperty('Cannot close currently')
@@ -129,6 +136,8 @@ class CPLComApp(KNSpaceBehavior, App):
         :meth:`~cplcom.moa.stages.ConfigStageBase.get_config_classes` as well
         as the current app class.
         '''
+        if App.get_running_app():
+            return {'app': App.get_running_app()}
         return {'app': cls}
 
     def __init__(self, **kw):
@@ -139,7 +148,9 @@ class CPLComApp(KNSpaceBehavior, App):
         if isdir(d):
             resource_add_path(d)
         resource_add_path(join(dirname(__file__), 'media'))
+        resource_add_path(join(dirname(__file__), 'media', 'flat'))
         self.filebrowser = Factory.PopupBrowser()
+        self.yesno_prompt = Factory.YesNoPrompt()
         p = self._close_popup = Factory.ClosePopup()
         p.text = self._close_message
 
@@ -177,6 +188,14 @@ class CPLComApp(KNSpaceBehavior, App):
         for k, v in self.app_settings['app'].items():
             setattr(self, k, v)
 
+    def apply_json_config(self):
+        apply_config(self.app_settings, self.get_config_classes())
+
+    def dump_json_config(self):
+        classes = self.get_config_classes()
+        populate_dump_config(self.ensure_config_file(self.json_config_path),
+                             classes, from_file=False)
+
     def build(self, root_cls=None):
         if root_cls is None:
             root = Factory.get('MainView')
@@ -186,12 +205,14 @@ class CPLComApp(KNSpaceBehavior, App):
             root = root_cls()
 
         if root is not None and self.inspect:
+            from kivy.core.window import Window
             inspector.create_inspector(Window, root)
         return root
 
     def _ask_close(self, *largs, **kwargs):
         if not self.check_close():
-            self._close_popup.open()
+            if self._close_message:
+                self._close_popup.open()
             return True
         return False
 
@@ -240,7 +261,11 @@ class CPLComApp(KNSpaceBehavior, App):
             err = exception
         else:
             err = '{} from {}'.format(exception, obj)
+
         error_indicator = error_indicator or self.error_indicator
+        if not error_indicator:
+            return
+
         if isinstance(error_indicator, basestring):
             error_indicator = getattr(knspace, error_indicator, None)
         error_indicator.add_item(str(err))
@@ -262,6 +287,7 @@ def run_app(cls, cleanup=None):
     '''Entrance method used to start the experiment GUI. It creates and runs
     a :class:`CPLComApp` type instance.
     '''
+    from kivy.core.window import Window
     handler = _CPLComHandler()
     ExceptionManager.add_handler(handler)
 
@@ -274,7 +300,7 @@ def run_app(cls, cleanup=None):
 
     if cleanup:
         try:
-            cleanup()
+            cleanup(app)
         except Exception as e:
             app.handle_exception(e, exc_info=sys.exc_info())
     if app.configparser:

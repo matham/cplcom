@@ -19,18 +19,24 @@ from kivy.properties import (
     OptionProperty)
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.scatter import Scatter
-from kivy.uix.spinner import Spinner
+from kivy.uix.spinner import Spinner, SpinnerOption
 from kivy.graphics.texture import Texture
 from kivy.graphics import Rectangle, BindTexture
 from kivy.graphics.transformation import Matrix
 from kivy.graphics.fbo import Fbo
 from kivy.uix.widget import Widget
+from kivy.uix.label import Label
+from kivy.core.window import Window
 from kivy.uix.behaviors.knspace import KNSpaceBehavior
 from kivy.uix.behaviors.button import ButtonBehavior
 from kivy.uix.behaviors.focus import FocusBehavior
 from kivy.animation import Sequence, Animation
 from kivy.factory import Factory
 from kivy.garden.filebrowser import FileBrowser
+from kivy.compat import string_types
+from kivy.uix.button import Button
+from kivy.uix.dropdown import DropDown
+from kivy.uix.textinput import TextInput
 
 from cplcom.utils import pretty_time
 
@@ -42,7 +48,7 @@ __all__ = (
 Builder.load_file(join(dirname(__file__), 'graphics.kv'))
 
 
-class AutoSizedSpinner(Spinner):
+class AutoSizedSpinnerBehavior(object):
     '''Spinner that exposes :attr:`minimum_size`, which is the size
     required to display the texture of the largest item in the spinner.
     '''
@@ -69,8 +75,9 @@ class AutoSizedSpinner(Spinner):
             self.option_cls = partial(self._decorate_class, cls)
         self.fbind('option_cls', decorate_cls)
         self.fbind('texture_size', self._update_min_size)
+        self.fbind('padding', self._update_min_size)
 
-        super(AutoSizedSpinner, self).__init__(**kwargs)
+        super(AutoSizedSpinnerBehavior, self).__init__(**kwargs)
         self._update_min_size()
 
     def _decorate_class(self, cls, *l, **kw):
@@ -80,13 +87,247 @@ class AutoSizedSpinner(Spinner):
         return wid
 
     def _update_min_size(self, *largs):
-        if not self._dropdown.container:
+        if not self._dropdown or not self._dropdown.container:
             widgets = [self]
         else:
             widgets = self._dropdown.container.children + [self]
+
         w = max((c.texture_size[0] for c in widgets))
         h = max((c.texture_size[1] for c in widgets))
-        self.minimum_size = w, h
+
+        self.minimum_size = w + 2 * self.padding_x, h + 2 * self.padding_y
+
+
+class FollowingLabel(Label):
+
+    attached_widget = None
+
+    def show_label(self, widget):
+        self.attached_widget = widget
+        Window.add_widget(self)
+        widget.fbind('center', self._reposition)
+        self.fbind('size', self._reposition)
+
+    def hide_label(self):
+        Window.remove_widget(self)
+        self.attached_widget.funbind('center', self._reposition)
+        self.funbind('size', self._reposition)
+
+    def _reposition(self, *largs):
+        # calculate the coordinate of the attached widget in the window
+        # coordinate system
+        win = Window
+        widget = self.attached_widget
+        wx, wy = widget.to_window(*widget.pos)
+        _, wtop = widget.to_window(widget.right, widget.top)
+
+        # ensure the dropdown list doesn't get out on the X axis, with a
+        # preference to 0 in case the list is too wide.
+        x = wx
+        if x + self.width > win.width:
+            x = win.width - self.width
+        if x < 0:
+            x = 0
+        self.x = x
+
+        # determine if we display the dropdown upper or lower to the widget
+        height = self.height
+
+        h_bottom = wy - height
+        h_top = win.height - (wtop + height)
+        if h_bottom > 0:
+            self.top = wy
+        elif h_top > 0:
+            self.y = wtop
+        else:
+            if h_top < h_bottom:
+                self.top = self.height = wy
+            else:
+                self.y = wtop
+
+Builder.load_string('''
+<FollowingLabel>:
+    size_hint: None, None
+    size: self.texture_size
+    padding: '6dp', '6dp'
+    color: 0, 0, 0, 1
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+
+<HighightButtonBehavior>:
+    canvas.after:
+        Color:
+            a: .3 if self.hovering else 0
+        Rectangle:
+            pos: self.pos
+            size: self.size
+''')
+
+
+class HighightButtonBehavior(object):
+
+    show_hover = BooleanProperty(True)
+
+    hover_text = StringProperty('')
+
+    hovering = BooleanProperty(False)
+
+    attached_widget = None
+
+    tracked_widgets = []
+
+    label = None
+
+    def __init__(self, **kwargs):
+        super(HighightButtonBehavior, self).__init__(**kwargs)
+        if self.show_hover:
+            self.tracked_widgets.append(self)
+
+    def on_show_hover(self, *largs):
+        if self.show_hover:
+            self.tracked_widgets.append(self)
+        else:
+            if self.hovering:
+                self.detach_widget()
+            self.tracked_widgets.remove(self)
+
+    def on_hover_text(self, *largs):
+        if self.hovering:
+            self.label.text = self.hover_text
+
+    @staticmethod
+    def init_class():
+        Window.fbind('mouse_pos', HighightButtonBehavior.track_mouse)
+        HighightButtonBehavior.label = FollowingLabel(markup=True)
+
+    def attach_widget(self):
+        self.hovering = True
+        if self.hover_text:
+            self.label.show_label(self)
+            self.label.text = self.hover_text
+        HighightButtonBehavior.attached_widget = self
+
+    def detach_widget(self):
+        self.hovering = False
+        HighightButtonBehavior.attached_widget = None
+        if self.hover_text:
+            self.label.hide_label()
+
+    @staticmethod
+    def track_mouse(instance, pos):
+        widget = HighightButtonBehavior.attached_widget
+        if widget:
+            if widget.collide_point(*widget.to_widget(*pos)):
+                return
+            else:
+                widget.detach_widget()
+
+        for widget in HighightButtonBehavior.tracked_widgets:
+            if widget.collide_point(*widget.to_widget(*pos)):
+                widget.attach_widget()
+                break
+
+
+class SpinnerBehavior(AutoSizedSpinnerBehavior):
+
+    values = ListProperty()
+
+    text_autoupdate = BooleanProperty(False)
+
+    option_cls = ObjectProperty(SpinnerOption)
+
+    dropdown_cls = ObjectProperty(DropDown)
+
+    is_open = BooleanProperty(False)
+
+    sync_height = BooleanProperty(False)
+
+    def __init__(self, **kwargs):
+        self._dropdown = None
+        super(SpinnerBehavior, self).__init__(**kwargs)
+        fbind = self.fbind
+        build_dropdown = self._build_dropdown
+        fbind('on_release', self._toggle_dropdown)
+        fbind('dropdown_cls', build_dropdown)
+        fbind('option_cls', build_dropdown)
+        fbind('values', self._update_dropdown)
+        fbind('size', self._update_dropdown_size)
+        fbind('text_autoupdate', self._update_dropdown)
+        build_dropdown()
+
+    def _build_dropdown(self, *largs):
+        if self._dropdown:
+            self._dropdown.unbind(on_select=self._on_dropdown_select)
+            self._dropdown.unbind(on_dismiss=self._close_dropdown)
+            self._dropdown.dismiss()
+            self._dropdown = None
+        cls = self.dropdown_cls
+        if isinstance(cls, string_types):
+            cls = Factory.get(cls)
+        self._dropdown = cls()
+        self._dropdown.bind(on_select=self._on_dropdown_select)
+        self._dropdown.bind(on_dismiss=self._close_dropdown)
+        self._update_dropdown()
+
+    def _update_dropdown_size(self, *largs):
+        if not self.sync_height:
+            return
+        dp = self._dropdown
+        if not dp:
+            return
+
+        container = dp.container
+        if not container:
+            return
+        h = self.height
+        for item in container.children[:]:
+            item.height = h
+
+    def _update_dropdown(self, *largs):
+        dp = self._dropdown
+        cls = self.option_cls
+        values = self.values
+        text_autoupdate = self.text_autoupdate
+        if isinstance(cls, string_types):
+            cls = Factory.get(cls)
+        dp.clear_widgets()
+        for value in values:
+            item = cls(text=value)
+            item.height = self.height if self.sync_height else item.height
+            item.bind(on_release=lambda option: dp.select(option.text))
+            dp.add_widget(item)
+        if text_autoupdate:
+            if values:
+                if not self.text or self.text not in values:
+                    self.text = values[0]
+            else:
+                self.text = ''
+
+    def _toggle_dropdown(self, *largs):
+        if self.values:
+            self.is_open = not self.is_open
+
+    def _close_dropdown(self, *largs):
+        self.is_open = False
+
+    def _on_dropdown_select(self, instance, data, *largs):
+        self.text = data
+        self.is_open = False
+
+    def on_is_open(self, instance, value):
+        if value:
+            self._dropdown.open(self)
+        else:
+            if self._dropdown.attach_to:
+                self._dropdown.dismiss()
+
+
+class AutoSizedSpinner(AutoSizedSpinnerBehavior, Spinner):
+    pass
 
 
 class EventFocusBehavior(FocusBehavior):
@@ -135,6 +376,8 @@ class BufferImage(KNSpaceBehavior, Scatter):
     '''Class that displays an image and allows its manipulation using touch.
     It receives an ffpyplayer :py:class:`~ffpyplayer.pic.Image` object.
     '''
+
+    scale_to_image = BooleanProperty(True)
 
     _iw = NumericProperty(0.)
     '''The width of the input image. '''
@@ -263,11 +506,12 @@ class BufferImage(KNSpaceBehavior, Scatter):
             update = True
 
         if update or w != self._last_w or h != self._last_h:
-            scalew, scaleh = w / float(img_w), h / float(img_h)
-            scale = min(min(scalew, scaleh), 1)
-            self.transform = Matrix()
-            self.apply_transform(Matrix().scale(scale, scale, 1),
-                                 post_multiply=True)
+            if self.scale_to_image:
+                scalew, scaleh = w / float(img_w), h / float(img_h)
+                scale = min(min(scalew, scaleh), 1)
+                self.transform = Matrix()
+                self.apply_transform(Matrix().scale(scale, scale, 1),
+                                     post_multiply=True)
             self._iw, self._ih = img_w, img_h
             self._last_h = h
             self._last_w = w
@@ -327,7 +571,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
         self.update_img(self.img)
 
 
-class ErrorIndicatorBase(KNSpaceBehavior, ButtonBehavior, Widget):
+class ErrorIndicatorBehavior(KNSpaceBehavior, ButtonBehavior):
     '''A Button based class that visualizes and notifies on the current error
     status.
 
@@ -346,7 +590,7 @@ class ErrorIndicatorBase(KNSpaceBehavior, ButtonBehavior, Widget):
     _anim = None
 
     def __init__(self, **kw):
-        super(ErrorIndicatorBase, self).__init__(**kw)
+        super(ErrorIndicatorBehavior, self).__init__(**kw)
         a = self._anim = Sequence(
             Animation(t='in_bounce', _alpha=1.),
             Animation(t='out_bounce', _alpha=0))
@@ -376,6 +620,10 @@ class ErrorIndicatorBase(KNSpaceBehavior, ButtonBehavior, Widget):
             self._level = level
 
         self._container.data.append({'text': text, 'level': level})
+
+
+class ErrorIndicatorBase(ErrorIndicatorBehavior, Widget):
+    pass
 
 
 class TimeLineSlice(Widget):
@@ -621,3 +869,13 @@ class TimeLine(KNSpaceBehavior, BoxLayout):
 
         for w in widgets:
             w.size_hint_x = f(w.duration)
+
+
+class FlatTextInput(TextInput):
+    pass
+
+Factory.register('AutoSizedSpinnerBehavior', cls=AutoSizedSpinnerBehavior)
+Factory.register('SpinnerBehavior', cls=SpinnerBehavior)
+Factory.register('EventFocusBehavior', cls=EventFocusBehavior)
+Factory.register('ErrorIndicatorBehavior', cls=ErrorIndicatorBehavior)
+Factory.register('HighightButtonBehavior', cls=HighightButtonBehavior)
