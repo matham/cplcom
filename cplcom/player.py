@@ -71,8 +71,6 @@ class Player(EventDispatcher):
         'record_directory', 'record_fname', 'record_fname_count',
         'metadata_play', 'metadata_play_used', 'metadata_record', 'cls')
 
-    players = ObjectProperty(None)
-
     cls = StringProperty('')
     '''(internal) The string associated with the player source used.
 
@@ -93,6 +91,10 @@ class Player(EventDispatcher):
     play_callback = None
     '''Shared between the event that sets the state to stop and the event that
     sets the state to playing.
+    '''
+
+    play_paused = False
+    '''When playing, whether we're paused.
     '''
 
     record_thread = None
@@ -209,6 +211,10 @@ class Player(EventDispatcher):
             raise ValueError('No image acquired')
 
         img, _ = self.last_image
+        self.save_image(fname, img, codec, pix_fmt)
+
+    @staticmethod
+    def save_image(fname, img, codec='bmp', pix_fmt='bgr24'):
         fmt = img.get_pixel_format()
         w, h = img.get_size()
 
@@ -255,9 +261,13 @@ class Player(EventDispatcher):
             return
 
         self.play_state = 'starting'
+        self.play_paused = False
         thread = self.play_thread = Thread(
             target=self.play_thread_run, name='Play thread')
         thread.start()
+
+    def set_pause(self, state):
+        raise NotImplementedError
 
     def record(self):
         '''Called from main thread only, starts recording and sets record state
@@ -580,6 +590,11 @@ class FFmpegPlayer(Player):
         if not mode == 'eof':
             self._request_stop('play')
 
+    def set_pause(self, state):
+        if self.play_state != 'playing' or self.play_paused == state:
+            return
+        self.play_paused = state
+
     def play_thread_run(self):
         self.frames_played = 0
         self.ts_play = self.real_rate = 0.
@@ -695,19 +710,35 @@ class FFmpegPlayer(Player):
         tdiff = 1 / (rate * 2.)
         self.ts_play = ivl_start
         count = 1
+        time_excess = 0
         self.frames_played = 1
 
         try:
             while self.play_state != 'stopping':
+                if self.play_paused:
+                    ts = clock()
+                    ffplayer.set_pause(True)
+
+                    while self.play_paused and self.play_state != 'stopping':
+                        time.sleep(.1)
+                    if not self.play_paused:
+                        ffplayer.set_pause(False)
+
+                    time_excess += clock() - ts
+                    continue
+
                 img, val = ffplayer.get_frame()
-                ivl_end = clock()
+                ivl_end = clock() - time_excess
+
                 if ivl_end - ivl_start >= 1.:
                     self.real_rate = count / (ivl_end - ivl_start)
                     count = 0
                     ivl_start = ivl_end
 
-                if val == 'eof' or val == 'paused':
+                if val == 'paused':
                     raise ValueError("Player {} got {}".format(self, val))
+                if val == 'eof':
+                    break
 
                 if not img:
                     time.sleep(min(val, tdiff) if val else tdiff)
