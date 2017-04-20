@@ -33,49 +33,6 @@
     size_hint: (None, None)
     size: (min(self.parent.width, 800), min(self.parent.height, 600)) if self.parent else (100, 100)
 
-<YesNoPrompt@ModalView>:
-    msg: 'Are you sure?'
-    affirm: 'Yes'
-    deny: 'No'
-    callback: None
-    size_hint: None, None
-    size: box.minimum_size
-    callback: None
-    content: box
-    BoxLayout:
-        id: box
-        orientation: 'vertical'
-        padding: '20dp'
-        spacing: '15dp'
-        size_hint: None, None
-        size: self.minimum_size
-        Label:
-            text: root.msg
-            padding: '15dp', '15dp'
-            size_hint: None, None
-            size: self.texture_size
-        BoxLayout:
-            padding: '20dp'
-            spacing: '15dp'
-            size_hint: None, None
-            size: self.minimum_size
-            Button:
-                text: root.affirm
-                padding: '15dp', '15dp'
-                size_hint: None, None
-                size: self.texture_size
-                on_release:
-                    if root.callback: root.callback(True)
-                    root.dismiss()
-            Button:
-                text: root.deny
-                padding: '15dp', '15dp'
-                size_hint: None, None
-                size: self.texture_size
-                on_release:
-                    if root.callback: root.callback(False)
-                    root.dismiss()
-
 <PopupBrowser@CallbackPopup>:
     target: expanduser('~')
     dirselect: False
@@ -320,6 +277,22 @@
         padding: '5dp'
         spacing: '5dp'
 
+<-FlatModalView@ModalView>:
+    flat_color: [0, 0, 0, 1]
+    flat_border_color: [1, 1, 1, 1]
+    canvas.before:
+        Color:
+            rgba: self.flat_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    canvas:
+        Color:
+            rgba: self.flat_border_color
+        Line:
+            width: 1
+            points: [self.x, self.y, self.x + self.width, self.y, self.x + self.width, self.y + self.height, self.x, self.y + self.height, self.x, self.y]
+
 <FlatSpinnerButton@FlatButton>:
     size_hint_y: None
     height: self.texture_size[1]
@@ -422,6 +395,57 @@
 
 <DarkButton>
 
+
+<YesNoPrompt@FlatModalView>:
+    msg: 'Are you sure?'
+    affirm: 'Yes'
+    deny: 'No'
+    callback: None
+    size_hint: None, None
+    size: box.minimum_size
+    callback: None
+    content: box
+    text_flat_color: [1, 1, 1, 1]
+    btn_flat_background_color_down: [0, 0, 0, 1]
+    btn_flat_background_color_normal: [0, 0, 0, 1]
+    BoxLayout:
+        id: box
+        orientation: 'vertical'
+        padding: '6dp'
+        spacing: '6dp'
+        size_hint: None, None
+        size: self.minimum_size
+        FlatLabel:
+            text: root.msg
+            padding: '15dp', '15dp'
+            size_hint: None, None
+            size: self.texture_size
+            flat_color: root.text_flat_color
+        BoxLayout:
+            spacing: '8dp'
+            size_hint_y: None
+            height: self.minimum_height
+            size_hint_min_x: self.minimum_width
+            FlatButton:
+                text: root.affirm
+                padding: '6dp', '6dp'
+                size_hint_min: self.texture_size
+                scale_down_color: True
+                flat_color: root.text_flat_color
+                flat_background_color: root.btn_flat_background_color_normal if self.state == 'normal' else root.btn_flat_background_color_down
+                on_release:
+                    if root.callback: root.callback(True)
+                    root.dismiss()
+            FlatButton:
+                text: root.deny
+                padding: '10dp', '10dp'
+                size_hint_min: self.texture_size
+                scale_down_color: True
+                flat_color: root.text_flat_color
+                flat_background_color: root.btn_flat_background_color_normal if self.state == 'normal' else root.btn_flat_background_color_down
+                on_release:
+                    if root.callback: root.callback(False)
+                    root.dismiss()
 
 # various button/switch widgets
 <SwitchIcon@ToggleButtonBehavior+LabeledIcon>

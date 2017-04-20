@@ -150,7 +150,6 @@ class CPLComApp(KNSpaceBehavior, App):
         resource_add_path(join(dirname(__file__), 'media'))
         resource_add_path(join(dirname(__file__), 'media', 'flat'))
         self.filebrowser = Factory.PopupBrowser()
-        self.yesno_prompt = Factory.YesNoPrompt()
         p = self._close_popup = Factory.ClosePopup()
         p.text = self._close_message
 
