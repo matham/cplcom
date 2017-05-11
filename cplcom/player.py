@@ -69,7 +69,8 @@ class Player(EventDispatcher):
 
     __settings_attrs__ = (
         'record_directory', 'record_fname', 'record_fname_count',
-        'metadata_play', 'metadata_play_used', 'metadata_record', 'cls')
+        'metadata_play', 'metadata_play_used', 'metadata_record', 'cls',
+        'estimate_record_rate')
 
     cls = StringProperty('')
     '''(internal) The string associated with the player source used.
@@ -152,6 +153,8 @@ class Player(EventDispatcher):
     metadata_record = ObjectProperty(None)
     '''(internal) Describes the video metadata of the video recorder.
     '''
+
+    estimate_record_rate = BooleanProperty(False)
 
     real_rate = 0
 
@@ -248,6 +251,8 @@ class Player(EventDispatcher):
         ofmt = ofmt or ifmt
         ow = ow or iw
         oh = oh or ih
+        if self.estimate_record_rate:
+            orate = orate or self.real_rate
         orate = orate or irate
         return (ifmt, iw, ih, irate), (ofmt, ow, oh, orate)
 
@@ -743,6 +748,8 @@ class FFmpegPlayer(Player):
                 if not img:
                     time.sleep(min(val, tdiff) if val else tdiff)
                     continue
+                elif val:
+                    time.sleep(min(val, tdiff))
 
                 count += 1
                 self.frames_played += 1
