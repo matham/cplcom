@@ -528,3 +528,12 @@
             size: root.texture_size
             texture: root.img_texture
             pos: self.pos
+
+
+<TimeSliceSelection>:
+    canvas:
+        Color:
+            rgba: 0, 1, 0, 1
+        Rectangle:
+            pos: self.low_handle, self.y
+            size: self.high_handle - self.low_handle, self.height

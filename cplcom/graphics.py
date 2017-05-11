@@ -5,7 +5,7 @@ from os.path import join, dirname
 from time import clock
 from functools import partial
 from inspect import isclass
-from math import pow
+from math import pow, fabs
 from kivy.compat import string_types
 
 from ffpyplayer.tools import get_best_pix_fmt
@@ -27,6 +27,7 @@ from kivy.graphics.fbo import Fbo
 from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.core.window import Window
+from kivy.metrics import dp
 from kivy.uix.behaviors.knspace import KNSpaceBehavior
 from kivy.uix.behaviors.button import ButtonBehavior
 from kivy.uix.behaviors.focus import FocusBehavior
@@ -873,6 +874,142 @@ class TimeLine(KNSpaceBehavior, BoxLayout):
 
 class FlatTextInput(TextInput):
     pass
+
+
+class TimeSliceSelection(Widget):
+
+    low_handle = NumericProperty(0)
+
+    high_handle = NumericProperty(1)
+
+    min = NumericProperty(0)
+
+    max = NumericProperty(1)
+
+    low_val = NumericProperty(0)
+
+    high_val = NumericProperty(1)
+
+    _working = False
+
+    def __init__(self, **kwargs):
+        super(TimeSliceSelection, self).__init__(**kwargs)
+        self.fbind('min', self._update_handles)
+        self.fbind('max', self._update_handles)
+        self.fbind('width', self._update_handles)
+        self.fbind('x', self._update_handles)
+        self.fbind('low_val', self._update_handles)
+        self.fbind('high_val', self._update_handles)
+
+    def _update_handles(self, *largs):
+        if self._working:
+            return
+
+        lowval = self.low_val
+        highval = self.high_val
+        mn = self.min
+        mx = self.max
+
+        if lowval < mn:
+            self.low_val = mn
+            return
+        if highval > mx:
+            self.high_val = mx
+            return
+
+        if lowval > highval:
+            self._working = True
+            self.low_val = highval
+            self._working = False
+            self.high_val = lowval
+            return
+
+        self.low_handle = self.to_size(lowval - mn) + self.x
+        self.high_handle = self.to_size(highval - mn) + self.x
+
+    def to_size(self, value):
+        '''value is the state value. returns in size.
+        '''
+        diff = float(self.max - self.min)
+        w = self.width
+
+        if not diff or not w:
+            return 0
+        return value / diff * w
+
+    def to_state(self, value):
+        '''value is the size value. returns in state.
+        '''
+        diff = float(self.max - self.min)
+        w = float(self.width)
+
+        if not diff or not w:
+            return 0
+        return value / w * diff
+
+    def on_touch_down(self, touch):
+        if super(TimeSliceSelection, self).on_touch_down(touch):
+            return True
+
+        if not self.collide_point(*touch.pos):
+            return False
+
+        tol = dp(2)
+        if self.low_handle - tol <= touch.x <= self.high_handle + tol:
+            if self.low_handle + tol <= touch.x <= self.high_handle - tol:
+                touch.ud['{0}.{1}'.format('timeslice', self.uid)] = 'center'
+            else:
+                touch.ud['{0}.{1}'.format('timeslice', self.uid)] = 'side'
+            return True
+        return False
+
+    def on_touch_move(self, touch):
+        if super(TimeSliceSelection, self).on_touch_move(touch):
+            return True
+
+        drag_type = touch.ud.get('{0}.{1}'.format('timeslice', self.uid))
+        if drag_type not in ('center', 'side'):
+            return False
+
+        dx = touch.dx
+        start = touch.x - dx
+        positive = dx > 0
+        tol = dp(2)
+        diff = self.to_state(dx)
+
+        if drag_type == 'center':
+            if self.low_handle <= start <= self.high_handle:
+                if positive:
+                    diff = min(diff, self.max - self.high_val)
+                    self.high_val += diff  # right side should move first
+                    self.low_val += diff
+                else:
+                    diff = max(diff, self.min - self.low_val)
+                    self.low_val += diff  # left side should move first
+                    self.high_val += diff
+            return True
+
+        is_low = self.low_handle - tol <= start <= self.low_handle + tol
+        is_high = self.high_handle - tol <= start <= self.high_handle + tol
+        if is_low and is_high:
+            if self.low_handle == self.high_handle:
+                if positive:
+                    is_low = False
+                else:
+                    is_high = False
+            else:
+                if fabs(self.low_handle - start) <= \
+                        fabs(self.high_handle - start):
+                    is_high = False
+                else:
+                    is_low = False
+
+        if is_low:
+            self.low_val = min(
+                max(self.min, self.low_val + diff), self.high_val)
+        else:
+            self.high_val = min(
+                max(self.low_val, self.high_val + diff), self.max)
 
 Factory.register('AutoSizedSpinnerBehavior', cls=AutoSizedSpinnerBehavior)
 Factory.register('SpinnerBehavior', cls=SpinnerBehavior)
