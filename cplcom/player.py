@@ -26,8 +26,11 @@ from ffpyplayer.tools import list_dshow_devices, set_log_callback
 from ffpyplayer.tools import get_supported_pixfmts, get_format_codec
 from ffpyplayer.writer import MediaWriter
 
-from pybarst.core.server import BarstServer
-from pybarst.rtv import RTVChannel
+try:
+    from pybarst.core.server import BarstServer
+    from pybarst.rtv import RTVChannel
+except ImportError:
+    RTVChannel = BarstServer = None
 
 from kivy.clock import Clock
 from kivy.compat import clock
@@ -814,6 +817,9 @@ class RTVPlayer(Player):
 
     def __init__(self, **kwargs):
         super(RTVPlayer, self).__init__(**kwargs)
+        if BarstServer is None:
+            raise ImportError('Could not import pybasrt.')
+
         self.metadata_play = self.metadata_play_used = \
             VideoMetadata('gray', 0, 0, 0)
         self.on_port()
