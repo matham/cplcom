@@ -32,6 +32,7 @@ html_theme_options = {
 intersphinx_mapping = {
     'moa': ('https://matham.github.io/moa/', None),
     'pybarst': ('https://matham.github.io/pybarst/', None),
+    'kivy': ('https://kivy.org/docs/', None),
     'ffpyplayer': ('https://matham.github.io/ffpyplayer/', None)
 }
 
