@@ -46,7 +46,7 @@ try:
     from pyflycap2.interface import GUI, Camera, CameraContext
 except ImportError as e:
     GUI = Camera = CameraContext = None
-    Logger.error(e, exc_info=sys.exc_info())
+    Logger.debug('cplcom: Could not import pyflycap2: '.format(e))
 
 from cplcom.app import app_error
 
