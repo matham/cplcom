@@ -43,7 +43,7 @@ from cplcom.utils import pretty_time
 
 __all__ = (
     'EventFocusBehavior', 'BufferImage', 'ErrorIndicatorBase', 'TimeLineSlice',
-    'TimeLine', 'AutoSizedSpinner')
+    'TimeLine', 'AutoSizedSpinner', 'EmptyDropDown')
 
 
 Builder.load_file(join(dirname(__file__), 'graphics.kv'))
@@ -97,6 +97,12 @@ class AutoSizedSpinnerBehavior(object):
         h = max((c.texture_size[1] for c in widgets))
 
         self.minimum_size = w + 2 * self.padding_x, h + 2 * self.padding_y
+
+
+class EmptyDropDown(DropDown):
+
+    def __init__(self, **kwargs):
+        super(EmptyDropDown, self).__init__(container=None, **kwargs)
 
 
 class FollowingLabel(Label):
@@ -447,7 +453,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
     _fbo = None
     ''' The Fbo used when blitting yuv420p images. '''
 
-    _YUV_RGB_FS = b'''
+    _YUV_RGB_FS = '''
     $HEADER$
     uniform sampler2D tex_y;
     uniform sampler2D tex_u;
@@ -462,8 +468,6 @@ class BufferImage(KNSpaceBehavior, Scatter):
         float b = y + 1.772 * u;
         gl_FragColor = vec4(r, g, b, 1.0);
     }
-    '''
-    ''' The shader code used blitting yuv420p images.
     '''
 
     def update_img(self, img):

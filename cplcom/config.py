@@ -59,7 +59,7 @@ import re
 from importlib import import_module
 import json
 from kivy.uix.behaviors.knspace import knspace
-from kivy.compat import PY2
+from kivy.compat import PY2, string_types
 from cplcom.utils import byteify
 
 __all__ = ('populate_config', 'apply_config', 'dump_config',
@@ -117,7 +117,7 @@ def _get_classses_settings_attrs(cls):
 
 
 def _get_config_dict(name, cls, opts):
-    if isinstance(cls, basestring):
+    if isinstance(cls, string_types):
         obj = getattr(knspace, cls)
     else:
         obj = cls
@@ -164,7 +164,7 @@ def apply_config(opts, classes):
     them to any existing class instances listed in classes.
     '''
     for name, cls in classes.items():
-        if isinstance(cls, basestring):
+        if isinstance(cls, string_types):
             obj = getattr(knspace, name)
         elif isclass(cls):
             continue
@@ -267,7 +267,7 @@ def get_config_attrs_doc(
             flat_clsses[name] = cls
 
     for name, cls in flat_clsses.items():
-        if isinstance(cls, basestring):
+        if isinstance(cls, string_types):
             cls = getattr(knspace, cls)
         if not isclass(cls):
             cls = cls.__class__

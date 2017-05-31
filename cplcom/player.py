@@ -1063,7 +1063,7 @@ class PTGrayPlayer(Player):
                     serial = self.serial
                     if serial or ip:
                         if _ip:
-                            _ip = map(int, _ip.split('.'))
+                            _ip = list(map(int, _ip.split('.')))
                         c = Camera(serial=serial or None, ip=_ip or None)
                         serial = c.serial
                         ip = '.'.join(map(str, c.ip))
@@ -1101,7 +1101,7 @@ class PTGrayPlayer(Player):
         ffmpeg_fmts = self.ffmpeg_pix_map
 
         try:
-            ip = map(int, self.ip.split('.')) if self.ip else None
+            ip = list(map(int, self.ip.split('.'))) if self.ip else None
             c = Camera(serial=self.serial or None, ip=ip)
             c.connect()
 

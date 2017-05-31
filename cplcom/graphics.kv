@@ -1,6 +1,7 @@
 #@PydevCodeAnalysisIgnore
 #:import expanduser os.path.expanduser
 #:import Factory kivy.factory.Factory
+#:import apply_args_post cplcom.utils.apply_args_post
 
 
 <ClosePopup@Popup>:
@@ -321,7 +322,7 @@
         size_hint_x: None
         width: self.minimum_size[0]
         padding_x: '5dp'
-        dropdown_cls: lambda *l, **kw: Factory.FlatDropDown(*l, flat_color=root.flat_drop_background_color, flat_border_color=root.flat_border_color, **kw)
+        dropdown_cls: apply_args_post(Factory.FlatDropDown, flat_color=root.flat_drop_background_color, flat_border_color=root.flat_border_color)
         option_cls: lambda *l, **kw: Factory.FlatSpinnerButton(*l, flat_color=root.flat_drop_text_color, **kw)
     FlatImageButton:
         state: spinner.state

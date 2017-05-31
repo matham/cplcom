@@ -4,11 +4,11 @@
 The base App class for cplcom.
 '''
 
-from __future__ import absolute_import
 import os
 import inspect
 import sys
 import json
+from functools import wraps
 from os.path import dirname, join, isdir, isfile
 from os import environ
 
@@ -33,6 +33,7 @@ from kivy.app import App
 from kivy.logger import Logger
 from kivy.config import ConfigParser
 from kivy.clock import Clock
+from kivy.compat import string_types
 
 import cplcom.graphics  # required to load kv
 from cplcom import config_name
@@ -54,6 +55,7 @@ def app_error(app_error_func, error_indicator=''):
         def do_something():
             do_something
     '''
+    @wraps(app_error_func)
     def safe_func(*largs, **kwargs):
         try:
             return app_error_func(*largs, **kwargs)
@@ -251,7 +253,7 @@ class CPLComApp(KNSpaceBehavior, App):
             `obj`: object
                 If not None, the object that caused the exception.
         '''
-        if isinstance(exc_info, basestring):
+        if isinstance(exc_info, string_types):
             self.get_logger().error(exception)
             self.get_logger().error(exc_info)
         else:
@@ -265,7 +267,7 @@ class CPLComApp(KNSpaceBehavior, App):
         if not error_indicator:
             return
 
-        if isinstance(error_indicator, basestring):
+        if isinstance(error_indicator, string_types):
             error_indicator = getattr(knspace, error_indicator, None)
         error_indicator.add_item(str(err))
 

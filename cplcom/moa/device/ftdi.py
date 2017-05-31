@@ -162,7 +162,7 @@ class FTDISerializerDevice(DeviceExceptionBehavior, ButtonViewPort,
     def _read_callback(self, result, **kwargs):
         t, val = result
         self.timestamp = t
-        for idx, name in self.chan_dev_map.iteritems():
+        for idx, name in self.chan_dev_map.items():
             setattr(self, name, val[idx])
         self.dispatch('on_data_update', self)
 
@@ -188,7 +188,7 @@ class FTDISerializerDevice(DeviceExceptionBehavior, ButtonViewPort,
         odors = self.chan
         odors.open_channel()
         odors.set_state(True)
-        odors.write(set_low=range(8 * self.num_boards))
+        odors.write(set_low=list(range(8 * self.num_boards)))
 
     def deactivate(self, *largs, **kwargs):
         kwargs['state'] = 'deactivating'
@@ -207,7 +207,7 @@ class FTDISerializerDevice(DeviceExceptionBehavior, ButtonViewPort,
 
     def _stop_channel(self, *largs, **kwargs):
         chan = self.chan
-        chan.write(set_low=range(8 * self.num_boards))
+        chan.write(set_low=list(range(8 * self.num_boards)))
         if self.settings.continuous:
             chan.cancel_read(flush=True)
         chan.set_state(False)
@@ -318,7 +318,7 @@ class FTDIPinDevice(DeviceExceptionBehavior, ButtonViewPort,
     def _write_callback(self, result, kw_in):
         _, value, mask = kw_in['data'][0]
         self.timestamp = result
-        for idx, name in self.chan_dev_map.iteritems():
+        for idx, name in self.chan_dev_map.items():
             if mask & (1 << idx):
                 setattr(self, name, bool(value & (1 << idx)))
         self.dispatch('on_data_update', self)
@@ -327,7 +327,7 @@ class FTDIPinDevice(DeviceExceptionBehavior, ButtonViewPort,
         t, (val, ) = result
         self.timestamp = t
         mask = self.bitmask
-        for idx, name in self.chan_dev_map.iteritems():
+        for idx, name in self.chan_dev_map.items():
             if mask & (1 << idx):
                 setattr(self, name, bool(val & (1 << idx)))
         self.dispatch('on_data_update', self)

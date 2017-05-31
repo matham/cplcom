@@ -9,7 +9,7 @@ from kivy.event import EventDispatcher
 import json
 
 __all__ = ('pretty_time', 'pretty_space', 'byteify', 'json_dumps',
-           'json_loads', 'ColorTheme')
+           'json_loads', 'ColorTheme', 'apply_args_post')
 
 
 def pretty_time(seconds):
@@ -135,6 +135,15 @@ class ColorTheme(EventDispatcher):
 
 class KVBehavior(object):
     pass
+
+
+def apply_args_post(cls, **keywordargs):
+    def ret_func(*largs, **kwargs):
+        o = cls(*largs, **kwargs)
+        for key, value in keywordargs.items():
+            setattr(o, key, value)
+        return o
+    return ret_func
 
 Factory.register(classname='ColorTheme', cls=ColorTheme)
 Factory.register(classname='KVBehavior', cls=KVBehavior)
