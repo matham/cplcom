@@ -214,6 +214,7 @@
             pos: self.pos
             size: self.size
 
+
 <FlatDivider@Widget>:
     orientation: 'vertical'
     size_hint_x: None if self.orientation == 'vertical' else 1
@@ -538,3 +539,23 @@
         Rectangle:
             pos: self.low_handle, self.y
             size: self.high_handle - self.low_handle, self.height
+
+
+
+
+#---------------------------
+
+<ThemedSpinner@FlatSpinner>:
+    flat_color: app.theme.text_primary
+    flat_menu_color: app.theme.accent
+    flat_drop_background_color: app.theme.primary_text
+    flat_drop_text_color: app.theme.text_primary
+    flat_border_color: app.theme.divider
+
+<ThemedLabel@FlatLabel>:
+    flat_color: app.theme.text_primary
+
+<LightThemedToggleButton@FlatToggleButton>:
+    scale_down_color: True
+    flat_color: app.theme.text_primary
+    flat_background_color: app.theme.primary_light if self.state == 'normal' else app.theme.primary
