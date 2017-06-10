@@ -145,7 +145,9 @@ class CPLComApp(KNSpaceBehavior, App):
     def __init__(self, **kw):
         super(CPLComApp, self).__init__(**kw)
         self.knsname = 'app'
+        self.init_load()
 
+    def init_load(self):
         d = self.data_path
         if isdir(d):
             resource_add_path(d)
