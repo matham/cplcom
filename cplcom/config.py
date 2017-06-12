@@ -325,7 +325,11 @@ ProjectApp.get_config_classes(), project_name))
         for attr, (default, doc) in sorted(attrs.items(),
                                            key=operator.itemgetter(0)):
             lines.append('`{}`: {}'.format(attr, default))
-            lines.extend([' ' + d for d in doc])
+            while doc and not doc[-1].strip():
+                del doc[-1]
+
+            lines.extend([' ' + d for d in doc if d])
+            lines.append('')
         lines.append('')
 
     lines = '\n'.join(lines)
