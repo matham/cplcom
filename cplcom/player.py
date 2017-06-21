@@ -6,6 +6,7 @@ Module for playing and recording video.
 
 from os.path import isfile, join, abspath, expanduser, splitext
 import logging
+import traceback
 import sys
 from threading import Thread, RLock
 import time
@@ -204,7 +205,12 @@ class Player(EventDispatcher):
             e.args = e.args + (msg, ) if e.args else (msg, )
         elif not e:
             e = Exception(msg)
-        knspace.app.handle_exception(e, exc_info=kwargs.get('exc_info', None))
+        if e:
+            e = str(e)
+        exc_info = kwargs.get('exc_info', None)
+        if exc_info:
+            exc_info = ''.join(traceback.format_exception(*exc_info))
+        knspace.app.handle_exception(e, exc_info=exc_info)
 
     def display_frame(self, *largs):
         pass
