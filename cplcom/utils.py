@@ -7,6 +7,8 @@ from kivy.properties import StringProperty
 from kivy.factory import Factory
 from kivy.event import EventDispatcher
 import json
+from io import StringIO
+from ruamel.yaml import YAML
 
 __all__ = ('pretty_time', 'pretty_space', 'byteify', 'json_dumps',
            'json_loads', 'ColorTheme', 'apply_args_post')
@@ -96,11 +98,26 @@ def byteify(val, py2_only=True):
 
     if isinstance(val, dict):
         return {byteify(key): byteify(value)
-                for key, value in val.iteritems()}
+                for key, value in val.items()}
     elif isinstance(val, list):
         return [byteify(element) for element in val]
     elif isinstance(val, unicode):
         return val.encode('utf-8')
+    else:
+        return val
+
+
+def unicodify(val, py3_only=False):
+    if PY2 and py3_only:
+        return val
+
+    if isinstance(val, dict):
+        return {unicodify(key): unicodify(value)
+                for key, value in val.items()}
+    elif isinstance(val, list):
+        return [unicodify(element) for element in val]
+    elif isinstance(val, bytes):
+        return val.decode('utf-8')
     else:
         return val
 
@@ -112,6 +129,19 @@ def json_dumps(value):
 def json_loads(value):
     decoded = json.loads(value)
     return byteify(decoded, True)
+
+
+def yaml_dumps(value):
+    yaml = YAML()
+    s = StringIO()
+    yaml.preserve_quotes = True
+    yaml.dump(value, s)
+    return s.getvalue()
+
+
+def yaml_loads(value):
+    yaml = YAML(typ='safe')
+    return yaml.load(value)
 
 
 class ColorTheme(EventDispatcher):
