@@ -3,15 +3,18 @@
 '''
 from kivy.compat import PY2
 from kivy.utils import get_color_from_hex
-from kivy.properties import StringProperty
+from kivy.properties import StringProperty, ObservableDict, ObservableList
 from kivy.factory import Factory
 from kivy.event import EventDispatcher
 import json
 from io import StringIO
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, SafeRepresenter
 
 __all__ = ('pretty_time', 'pretty_space', 'byteify', 'json_dumps',
            'json_loads', 'ColorTheme', 'apply_args_post')
+
+SafeRepresenter.add_representer(ObservableList, SafeRepresenter.represent_list)
+SafeRepresenter.add_representer(ObservableDict, SafeRepresenter.represent_dict)
 
 
 def pretty_time(seconds):
@@ -131,8 +134,13 @@ def json_loads(value):
     return byteify(decoded, True)
 
 
+def _get_yaml():
+    yaml = YAML(typ='safe')
+    return yaml
+
+
 def yaml_dumps(value):
-    yaml = YAML()
+    yaml = _get_yaml()
     s = StringIO()
     yaml.preserve_quotes = True
     yaml.dump(value, s)
@@ -140,21 +148,25 @@ def yaml_dumps(value):
 
 
 def yaml_loads(value):
-    yaml = YAML(typ='safe')
+    yaml = _get_yaml()
     return yaml.load(value)
 
 
 class ColorTheme(EventDispatcher):
+    '''Default values from https://www.materialpalette.com/amber/indigo
+    '''
 
-    primary_dark = StringProperty(get_color_from_hex('00796BFF'))
+    primary_dark = StringProperty(get_color_from_hex('FFA000FF'))
 
-    primary = StringProperty(get_color_from_hex('009688FF'))
+    primary = StringProperty(get_color_from_hex('FFC107FF'))
 
-    primary_light = StringProperty(get_color_from_hex('B2DFDBFF'))
+    primary_light = StringProperty(get_color_from_hex('FFECB3FF'))
 
     primary_text = StringProperty(get_color_from_hex('FFFFFFFF'))
+    '''This is different.
+    '''
 
-    accent = StringProperty(get_color_from_hex('E040FBFF'))
+    accent = StringProperty(get_color_from_hex('536DFEFF'))
 
     text_primary = StringProperty(get_color_from_hex('212121FF'))
 

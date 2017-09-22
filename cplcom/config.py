@@ -60,7 +60,7 @@ from importlib import import_module
 import json
 from kivy.uix.behaviors.knspace import knspace
 from kivy.compat import PY2, string_types
-from cplcom.utils import byteify
+from cplcom.utils import byteify, yaml_loads, yaml_dumps
 
 __all__ = ('populate_config', 'apply_config', 'dump_config',
            'populate_dump_config', 'create_doc_listener',
@@ -129,20 +129,27 @@ def _get_config_dict(name, cls, opts):
             new_vals[attr] = opt.get(
                 attr, getattr(obj, attr).defaultvalue)
     else:
-        for attr in _get_settings_attrs(obj.__class__):
-            new_vals[attr] = opt.get(attr, getattr(obj, attr))
+        if hasattr(obj, 'get_settings_attrs'):
+            for k, v in obj.get_settings_attrs(
+                    _get_settings_attrs(obj.__class__)).items():
+                new_vals[k] = opt.get(k, v)
+        else:
+            for attr in _get_settings_attrs(obj.__class__):
+                new_vals[attr] = opt.get(attr, getattr(obj, attr))
     return new_vals
 
 
-def populate_config(json_filename, classes, from_file=True):
+def populate_config(filename, classes, from_file=True):
     '''Reads the config file and loads all the config data for the classes
     listed in `classes`.
     '''
     opts = {}
     if from_file:
         try:
-            with open(json_filename) as fh:
-                opts = byteify(json.load(fh))
+            with open(filename) as fh:
+                opts = yaml_loads(fh.read())
+            if opts is None:
+                opts = {}
         except IOError:
             pass
 
@@ -164,17 +171,24 @@ def apply_config(opts, classes):
     them to any existing class instances listed in classes.
     '''
     for name, cls in classes.items():
+        if name not in opts:
+            continue
+
         if isinstance(cls, string_types):
             obj = getattr(knspace, name)
         elif isclass(cls):
             continue
         else:
             obj = cls
+
         if not obj:
             continue
 
-        for k, v in opts[name].items():
-            setattr(obj, k, v)
+        if hasattr(obj, 'apply_settings'):
+            obj.apply_settings(opts[name])
+        else:
+            for k, v in opts[name].items():
+                setattr(obj, k, v)
 
 
 def _whitesp_sub(m):
@@ -182,10 +196,10 @@ def _whitesp_sub(m):
 
 
 def dump_config(filename, data):
-    s = json.dumps(data, sort_keys=True, indent=4, separators=(',', ': '))
-    s = re.sub(config_list_pat, _whitesp_sub, s)
+    # s = json.dumps(data, sort_keys=True, indent=4, separators=(',', ': '))
+    # s = re.sub(config_list_pat, _whitesp_sub, s)
     with open(filename, 'w') as fh:
-        fh.write(s)
+        fh.write(yaml_dumps(data))
 
 
 def populate_dump_config(filename, classes, from_file=True):

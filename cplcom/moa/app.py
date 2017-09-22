@@ -70,7 +70,7 @@ class ExperimentApp(CPLComApp, MoaApp):
         super(ExperimentApp, self).__init__(**kw)
 
     def build(self, **kwargs):
-        self.load_json_config()
+        self.load_app_settings_from_file()
         return super(ExperimentApp, self).build(**kwargs)
 
     def check_close(self):

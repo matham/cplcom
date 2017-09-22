@@ -197,6 +197,22 @@ class Player(EventDispatcher):
         self.record_lock = RLock()
         self.display_trigger = Clock.create_trigger(self.display_frame, 0)
 
+    def get_settings_attrs(self, attrs):
+        d = {}
+        for key in attrs:
+            if key in (
+                    'metadata_play', 'metadata_play_used', 'metadata_record'):
+                d[key] = tuple(getattr(self, key))
+            else:
+                d[key] = getattr(self, key)
+        return d
+
+    def apply_settings(self, settings):
+        for k, v in settings.items():
+            if k in ('metadata_play', 'metadata_play_used', 'metadata_record'):
+                v = VideoMetadata(*v)
+            setattr(self, k, v)
+
     def err_callback(self, *largs, **kwargs):
         self.stop()
         msg = kwargs.get('msg', '')

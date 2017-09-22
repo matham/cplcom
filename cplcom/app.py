@@ -78,7 +78,7 @@ class CPLComApp(KNSpaceBehavior, App):
     '''
 
     json_config_path = ConfigParserProperty(
-        'config.json', 'Experiment', 'json_config_path', config_name,
+        'config.yaml', 'Experiment', 'json_config_path', config_name,
         val_type=str)
     '''The full path to the config file used for the experiment.
 
@@ -161,6 +161,8 @@ class CPLComApp(KNSpaceBehavior, App):
         if parser is None:
             parser = self.configparser = ConfigParser(name=config_name)
 
+        parser.setdefaults(
+            'Experiment', {'json_config_path': self.json_config_path})
         parser.read(self.ensure_config_file('config.ini'))
         parser.write()
         self.json_config_path = parser.get('Experiment', 'json_config_path')
@@ -183,18 +185,18 @@ class CPLComApp(KNSpaceBehavior, App):
             return sys._MEIPASS
         return join(dirname(inspect.getfile(self.__class__)), 'data')
 
-    def load_json_config(self):
+    def load_app_settings_from_file(self):
         classes = self.get_config_classes()
         self.app_settings = populate_dump_config(
             self.ensure_config_file(self.json_config_path), classes)
 
-        for k, v in self.app_settings['app'].items():
-            setattr(self, k, v)
+        apply_config({
+            'app': self.app_settings['app']}, self.get_config_classes())
 
-    def apply_json_config(self):
+    def apply_app_settings(self):
         apply_config(self.app_settings, self.get_config_classes())
 
-    def dump_json_config(self):
+    def dump_app_settings_to_file(self):
         classes = self.get_config_classes()
         populate_dump_config(self.ensure_config_file(self.json_config_path),
                              classes, from_file=False)
