@@ -526,10 +526,12 @@
 <BufferImage>:
     canvas:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: self.color
         Rectangle:
             size: root.texture_size
             texture: root.img_texture
+        Color:
+            rgba: 1, 1, 1, 1
 
 
 <TimeSliceSelection>:
