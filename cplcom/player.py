@@ -1018,8 +1018,8 @@ class PTGrayPlayer(Player):
         c.set_drop_mode(opts['drop'])
         c.set_gige_config(opts['offset_x'], opts['offset_y'], opts['width'],
                           opts['height'], opts['fmt'])
-        c.set_gige_packet_config(opts['resend'], opts['resend_timeout'],
-                                 opts['max_resend_packets'])
+        c.set_gige_packet_config(opts['resend'], opts['timeout'],
+                                 opts['timeout_retries'])
         c.set_gige_binning(opts['horizontal'], opts['vertical'])
 
     def read_gige_opts(self, c):
