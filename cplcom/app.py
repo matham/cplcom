@@ -18,7 +18,6 @@ if 'KIVY_CLOCK' not in environ:
 if not os.environ.get('KIVY_DOC_INCLUDE', None):
     from kivy.config import Config
     Config.set('kivy', 'exit_on_escape', 0)
-    Config.set('kivy', 'multitouch_on_demand', 1)
     Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
 from kivy.properties import (

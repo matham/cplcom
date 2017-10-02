@@ -432,6 +432,9 @@ class BufferImage(KNSpaceBehavior, Scatter):
     img_texture = ObjectProperty(None)
     '''The texture into which the images are blitted. Defaults to None. '''
 
+    color = ListProperty([1, 1, 1, 1])
+    '''The color in which to display the image. '''
+
     _kivy_ofmt = ''
     '''Kivy's color format of the image passed in. '''
 
