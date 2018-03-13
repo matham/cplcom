@@ -943,7 +943,10 @@ class PTGrayPlayer(Player):
     '''Wrapper for Point Gray based player.
     '''
 
-    __settings_attrs__ = ('serial', 'ip', 'cam_config_opts')
+    __settings_attrs__ = (
+        'serial', 'ip', 'cam_config_opts', 'brightness', 'exposure',
+        'sharpness', 'hue', 'saturation', 'gamma', 'shutter', 'gain',
+        'iris', 'frame_rate', 'pan', 'tilt', 'mirror')
 
     serial = NumericProperty(0)
     '''The serial number of the camera to open. Either :attr:`ip` or
@@ -963,11 +966,28 @@ class PTGrayPlayer(Player):
     '''The configuration options used to configure the camera after opening.
     '''
 
+    brightness = DictProperty({})
+    exposure = DictProperty({})
+    sharpness = DictProperty({})
+    hue = DictProperty({})
+    saturation = DictProperty({})
+    gamma = DictProperty({})
+    shutter = DictProperty({})
+    gain = DictProperty({})
+    iris = DictProperty({})
+    frame_rate = DictProperty({})
+    pan = DictProperty({})
+    tilt = DictProperty({})
+
+    mirror = BooleanProperty(False)
+
     config_thread = None
 
     config_queue = None
 
     config_active = ListProperty([])
+
+    _camera = None
 
     ffmpeg_pix_map = {
         'mono8': 'gray', 'yuv411': 'uyyvyy411', 'yuv422': 'uyvy422',
@@ -975,6 +995,8 @@ class PTGrayPlayer(Player):
         'rgb16': 'rgb565le', 's_mono16': 'gray16le', 's_rgb16': 'rgb565le',
         'bgr': 'bgr24', 'bgru': 'bgra', 'rgb': 'rgb24', 'rgbu': 'rgba',
         'bgr16': 'bgr565le', 'yuv422_jpeg': 'yuvj422p'}
+
+    cam_registers = {}
 
     def __init__(self, **kwargs):
         super(PTGrayPlayer, self).__init__(**kwargs)
@@ -1009,9 +1031,69 @@ class PTGrayPlayer(Player):
             self.config_active.append(item)
             queue.put_nowait(item)
 
+    def ask_cam_option_config(self, setting, name, value):
+        if not name or getattr(self, setting)[name] != value:
+            self.ask_config(('option', (setting, name, value)))
+
     def finish_ask_config(self, item, *largs, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+        if isinstance(item, tuple) and item[0] == 'option':
+            setting, _, _ = item[1]
+            getattr(self, setting).update(kwargs['values'])
+        else:
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+    def get_setting_names(self):
+        return (
+            'brightness', 'exposure', 'sharpness', 'hue', 'saturation',
+            'gamma', 'shutter', 'gain', 'iris', 'frame_rate', 'pan', 'tilt')
+
+    def read_cam_option_config(self, setting, cam):
+        options = {}
+        mn, mx = cam.get_cam_abs_setting_range(setting)
+        options['min'], options['max'] = mn, mx
+        options['value'] = cam.get_cam_abs_setting_value(setting)
+        options.update(cam.get_cam_setting_option_values(setting))
+        return options
+
+    def write_cam_option_config(self, setting, cam, name, value):
+        if name == 'value':
+            cam.set_cam_abs_setting_value(setting, value)
+        else:
+            cam.set_cam_setting_option_values(setting, **{name: value})
+            if name == 'one_push' and value:
+                while cam.get_cam_setting_option_values(setting)['one_push']:
+                    time.sleep(.2)
+
+    def write_cam_options_config(self, cam):
+        for setting in self.get_setting_names():
+            settings = getattr(self, setting)
+            cam.set_cam_setting_option_values(
+                setting, abs=settings.get('abs', None),
+                controllable=settings.get('controllable', None),
+                auto=settings.get('auto', None)
+            )
+            settings_read = cam.get_cam_setting_option_values(setting)
+            if settings_read['controllable'] and not settings_read['auto']:
+                if settings_read['abs'] and 'value' in settings:
+                    cam.set_cam_abs_setting_value(setting, settings['value'])
+                elif not settings_read['abs'] and 'relative_value' in settings:
+                    cam.set_cam_setting_option_values(
+                        setting, relative_value=settings['relative_value'])
+
+        if cam.get_horizontal_mirror()[0]:
+            cam.set_horizontal_mirror(self.mirror)
+
+    def read_cam_options_config(self, cam):
+        for setting in self.get_setting_names():
+            Clock.schedule_once(partial(
+                self.finish_ask_config, None,
+                **{setting: self.read_cam_option_config(setting, cam)}))
+
+        if cam.get_horizontal_mirror()[0]:
+            Clock.schedule_once(partial(
+                self.finish_ask_config, None,
+                mirror=cam.get_horizontal_mirror()[1]))
 
     def write_gige_opts(self, c, opts):
         c.set_gige_mode(opts['mode'])
@@ -1070,7 +1152,9 @@ class PTGrayPlayer(Player):
                         c.connect()
                         if old_serial == serial or old_ip == ip:
                             self.write_gige_opts(c, self.cam_config_opts)
+                            self.write_cam_options_config(c)
                         self.read_gige_opts(c)
+                        self.read_cam_options_config(c)
                         c.disconnect()
                         c = None
                 elif item == 'serial':
@@ -1079,6 +1163,21 @@ class PTGrayPlayer(Player):
                     gui = GUI()
                     gui.show_selection()
                     do_serial = True  # read possibly updated config
+                elif c or self._camera:
+                    cam = c or self._camera
+                    if isinstance(item, tuple) and item[0] == 'mirror':
+                        if cam.get_horizontal_mirror()[0]:
+                            cam.set_horizontal_mirror(item[1])
+                        Clock.schedule_once(partial(
+                            self.finish_ask_config, item,
+                            mirror=cam.get_horizontal_mirror()[1]))
+                    elif isinstance(item, tuple) and item[0] == 'option':
+                        _, (setting, name, value) = item
+                        if name:
+                            self.write_cam_option_config(setting, cam, name, value)
+                        Clock.schedule_once(partial(
+                            self.finish_ask_config, item,
+                            values=self.read_cam_option_config(setting, cam)))
 
                 if do_serial:
                     _ip = ip = self.ip
@@ -1091,6 +1190,7 @@ class PTGrayPlayer(Player):
                         ip = '.'.join(map(str, c.ip))
                         c.connect()
                         self.read_gige_opts(c)
+                        self.read_cam_options_config(c)
                         c.disconnect()
                         c = None
 
@@ -1146,6 +1246,7 @@ class PTGrayPlayer(Player):
                     self.ts_play = ivl_start = clock()
                     self.change_status('play', True)
                     started = True
+                    self._camera = c
 
                 ivl_end = clock()
                 if ivl_end - ivl_start >= 1.:
@@ -1193,6 +1294,8 @@ class PTGrayPlayer(Player):
             except:
                 pass
             return
+        finally:
+            self._camera = None
 
         try:
             c.disconnect()
