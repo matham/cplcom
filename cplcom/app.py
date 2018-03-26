@@ -9,20 +9,16 @@ import inspect
 import sys
 import json
 from functools import wraps
-from os.path import dirname, join, isdir, isfile
-from os import environ
+from configparser import ConfigParser
+from os.path import dirname, join, isdir
 
-if 'KIVY_CLOCK' not in environ:
-    environ['KIVY_CLOCK'] = 'free_only'
 
 if not os.environ.get('KIVY_DOC_INCLUDE', None):
     from kivy.config import Config
     Config.set('kivy', 'exit_on_escape', 0)
     Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
 
-from kivy.properties import (
-    ObjectProperty, OptionProperty, ConfigParserProperty, StringProperty,
-    BooleanProperty, NumericProperty, ListProperty)
+from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy import resources
 from kivy.modules import inspector
 from kivy.resources import resource_add_path
@@ -31,21 +27,18 @@ from kivy.uix.behaviors.knspace import knspace, KNSpaceBehavior
 from kivy.base import ExceptionManager, ExceptionHandler
 from kivy.app import App
 from kivy.logger import Logger
-from kivy.config import ConfigParser
 from kivy.clock import Clock
-from kivy.compat import string_types
 
 import cplcom.graphics  # required to load kv
-from cplcom import config_name
 from cplcom.utils import ColorTheme
-from cplcom.config import populate_dump_config, apply_config, dump_config
+from cplcom.config import populate_dump_config, apply_config
 if not os.environ.get('KIVY_DOC_INCLUDE', None):
     Clock.max_iteration = 20
 
-__all__ = ('CPLComApp', 'run_app', 'app_error')
+__all__ = ('CPLComApp', 'run_app', 'app_error', 'app_error_async')
 
 
-def app_error(app_error_func, error_indicator=''):
+def app_error(app_error_func, error_indicator='', threaded=False):
     '''A decorator which wraps the function in `try...except` and calls
     :meth:`CPLComApp.handle_exception` when a exception is raised.
 
@@ -60,8 +53,43 @@ def app_error(app_error_func, error_indicator=''):
         try:
             return app_error_func(*largs, **kwargs)
         except Exception as e:
-            knspace.app.handle_exception(e, exc_info=sys.exc_info(),
-                                         error_indicator=error_indicator)
+            def report_exception(*largs):
+                knspace.app.handle_exception(
+                    e, exc_info=sys.exc_info(),
+                    error_indicator=error_indicator)
+
+            if threaded:
+                Clock.schedule_once(report_exception)
+            else:
+                report_exception()
+
+    return safe_func
+
+
+def app_error_async(app_error_func, error_indicator='', threaded=False):
+    '''A decorator which wraps the async function in `try...except` and calls
+    :meth:`CPLComApp.handle_exception` when a exception is raised.
+
+    E.g.::
+
+        @app_error
+        async def do_something():
+            do_something
+    '''
+    @wraps(app_error_func)
+    async def safe_func(*largs, **kwargs):
+        try:
+            return await app_error_func(*largs, **kwargs)
+        except Exception as e:
+            def report_exception(*largs):
+                knspace.app.handle_exception(
+                    e, exc_info=sys.exc_info(),
+                    error_indicator=error_indicator)
+
+            if threaded:
+                Clock.schedule_once(report_exception)
+            else:
+                report_exception()
 
     return safe_func
 
@@ -70,16 +98,9 @@ class CPLComApp(KNSpaceBehavior, App):
     '''The base app.
     '''
 
-    __settings_attrs__ = ('inspect', )
+    __settings_attrs__ = ('inspect', 'data_directory')
 
-    configparser = ObjectProperty(None)
-    '''The :class:`ConfigParser` instance used for configuring the devices /
-    system. The config file used with this instance is `'config.ini'`.
-    '''
-
-    json_config_path = ConfigParserProperty(
-        'config.yaml', 'Experiment', 'json_config_path', config_name,
-        val_type=str)
+    json_config_path = StringProperty('config.yaml')
     '''The full path to the config file used for the experiment.
 
     Defaults to `'experiment.ini'`. This ini file contains the configuration
@@ -98,16 +119,16 @@ class CPLComApp(KNSpaceBehavior, App):
     :mod:`cplcom.config` for how configuration works.
     '''
 
+    inspect = BooleanProperty(False)
+    '''Enables GUI inspection. If True, it is activated by hitting ctrl-e in
+    the GUI.
+    '''
+
     error_indicator = ObjectProperty(None)
     '''The error indicator that gets the error reports. The experiment GUI
     should set :attr:`error_indicator` to the
     :class:`cplcom.graphics.ErrorIndicatorBase` instance used in the experiment
     abd it will be used to diplay errors and warnings.
-    '''
-
-    inspect = BooleanProperty(False)
-    '''Enables GUI inspection. If True, it is activated by hitting ctrl-e in
-    the GUI.
     '''
 
     filebrowser = ObjectProperty(None)
@@ -148,23 +169,27 @@ class CPLComApp(KNSpaceBehavior, App):
         self.init_load()
 
     def init_load(self):
+        '''Creates and reads config files. Initializes widgets. Add
+        media to path etc.
+        '''
         d = self.data_path
         if isdir(d):
             resource_add_path(d)
         resource_add_path(join(dirname(__file__), 'media'))
         resource_add_path(join(dirname(__file__), 'media', 'flat'))
+
         self.filebrowser = Factory.PopupBrowser()
         p = self._close_popup = Factory.ClosePopup()
         p.text = self._close_message
 
-        parser = self.configparser
-        if parser is None:
-            parser = self.configparser = ConfigParser(name=config_name)
+        parser = ConfigParser()
 
         parser.setdefaults(
             'Experiment', {'json_config_path': self.json_config_path})
-        parser.read(self.ensure_config_file('config.ini'))
-        parser.write()
+        filename = self.ensure_config_file('config.ini')
+        parser.read(filename)
+        with open(filename, 'w') as fh:
+            parser.write(fh)
         self.json_config_path = parser.get('Experiment', 'json_config_path')
         self.ensure_config_file(self.json_config_path)
 
@@ -201,14 +226,7 @@ class CPLComApp(KNSpaceBehavior, App):
         populate_dump_config(self.ensure_config_file(self.json_config_path),
                              classes, from_file=False)
 
-    def build(self, root_cls=None):
-        if root_cls is None:
-            root = Factory.get('MainView')
-            if root is not None:
-                root = root()
-        else:
-            root = root_cls()
-
+    def build(self, root=None):
         if root is not None and self.inspect:
             from kivy.core.window import Window
             inspector.create_inspector(Window, root)
@@ -238,8 +256,8 @@ class CPLComApp(KNSpaceBehavior, App):
             return
         self.json_config_path = join(path, filename)
 
-    def handle_exception(self, exception, exc_info=None, event=None, obj=None,
-                         error_indicator='', level='error', *largs):
+    def handle_exception(self, msg, exc_info=None, error_indicator='',
+                         level='error', *largs):
         '''Should be called whenever an exception is caught in the app.
 
         :parameters:
@@ -250,30 +268,23 @@ class CPLComApp(KNSpaceBehavior, App):
             `exc_info`: stack trace
                 If not None, the return value of ``sys.exc_info()``. It is used
                 to log the stack trace.
-            `event`: :class:`moa.threads.ScheduledEvent` instance
-                If not None and the exception originated from within a
-                :class:`moa.threads.ScheduledEventLoop`, it's the
-                :class:`moa.threads.ScheduledEvent` that caused the execution.
-            `obj`: object
-                If not None, the object that caused the exception.
         '''
-        if isinstance(exc_info, string_types):
-            self.get_logger().error(exception)
+        if isinstance(exc_info, str):
+            self.get_logger().error(msg)
             self.get_logger().error(exc_info)
+        elif level in ('error', 'exception'):
+            self.get_logger().error(msg, exc_info=exc_info)
         else:
-            self.get_logger().error(exception, exc_info=exc_info)
-        if obj is None:
-            err = exception
-        else:
-            err = '{} from {}'.format(exception, obj)
+            getattr(self.get_logger(), level)(msg)
 
         error_indicator = error_indicator or self.error_indicator
         if not error_indicator:
             return
 
-        if isinstance(error_indicator, string_types):
+        if isinstance(error_indicator, str):
             error_indicator = getattr(knspace, error_indicator, None)
-        error_indicator.add_item(str(err))
+        if error_indicator:
+            error_indicator.add_item('{}'.format(msg))
 
     def get_logger(self):
         return Logger
@@ -282,8 +293,9 @@ class CPLComApp(KNSpaceBehavior, App):
 class _CPLComHandler(ExceptionHandler):
 
     def handle_exception(self, inst):
-        if getattr(knspace, 'app', None):
-            knspace.app.handle_exception(inst, exc_info=sys.exc_info())
+        app = App.get_running_app()
+        if app:
+            app.handle_exception(inst, exc_info=sys.exc_info())
             return ExceptionManager.PASS
         return ExceptionManager.RAISE
 
@@ -308,8 +320,31 @@ def run_app(cls, cleanup=None):
             cleanup(app)
         except Exception as e:
             app.handle_exception(e, exc_info=sys.exc_info())
-    if app.configparser:
-        app.configparser.write()
+
+    Window.funbind('on_request_close', app._ask_close)
+    ExceptionManager.remove_handler(handler)
+
+
+async def run_app_async(cls, cleanup=None):
+    '''Entrance method used to start the experiment GUI. It creates and runs
+    a :class:`CPLComApp` type instance.
+    '''
+    from kivy.core.window import Window
+    handler = _CPLComHandler()
+    ExceptionManager.add_handler(handler)
+
+    app = cls()
+    Window.fbind('on_request_close', app._ask_close)
+    try:
+        await app.async_run()
+    except Exception as e:
+        app.handle_exception(e, exc_info=sys.exc_info())
+
+    if cleanup:
+        try:
+            cleanup(app)
+        except Exception as e:
+            app.handle_exception(e, exc_info=sys.exc_info())
 
     Window.funbind('on_request_close', app._ask_close)
     ExceptionManager.remove_handler(handler)
