@@ -98,7 +98,7 @@ class CPLComApp(KNSpaceBehavior, App):
     '''The base app.
     '''
 
-    __settings_attrs__ = ('inspect', 'data_directory')
+    __settings_attrs__ = ('inspect', )
 
     json_config_path = StringProperty('config.yaml')
     '''The full path to the config file used for the experiment.
@@ -184,8 +184,10 @@ class CPLComApp(KNSpaceBehavior, App):
 
         parser = ConfigParser()
 
-        parser.setdefaults(
-            'Experiment', {'json_config_path': self.json_config_path})
+        if not parser.has_section('Experiment'):
+            parser.add_section('Experiment')
+        if not parser.has_option('Experiment', 'json_config_path'):
+            parser.set('Experiment', 'json_config_path', self.json_config_path)
         filename = self.ensure_config_file('config.ini')
         parser.read(filename)
         with open(filename, 'w') as fh:
