@@ -300,7 +300,7 @@ class _CPLComHandler(ExceptionHandler):
         return ExceptionManager.RAISE
 
 
-def run_app(cls, cleanup=None):
+def run_app(cls_or_app, cleanup=None):
     '''Entrance method used to start the experiment GUI. It creates and runs
     a :class:`CPLComApp` type instance.
     '''
@@ -308,7 +308,7 @@ def run_app(cls, cleanup=None):
     handler = _CPLComHandler()
     ExceptionManager.add_handler(handler)
 
-    app = cls()
+    app = cls_or_app() if inspect.isclass(cls_or_app) else cls_or_app
     Window.fbind('on_request_close', app._ask_close)
     try:
         app.run()
@@ -325,7 +325,7 @@ def run_app(cls, cleanup=None):
     ExceptionManager.remove_handler(handler)
 
 
-async def run_app_async(cls, cleanup=None):
+async def run_app_async(cls_or_app, cleanup=None):
     '''Entrance method used to start the experiment GUI. It creates and runs
     a :class:`CPLComApp` type instance.
     '''
@@ -333,7 +333,7 @@ async def run_app_async(cls, cleanup=None):
     handler = _CPLComHandler()
     ExceptionManager.add_handler(handler)
 
-    app = cls()
+    app = cls_or_app() if inspect.isclass(cls_or_app) else cls_or_app
     Window.fbind('on_request_close', app._ask_close)
     try:
         await app.async_run()
