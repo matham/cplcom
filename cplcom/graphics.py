@@ -386,6 +386,8 @@ class BufferImage(KNSpaceBehavior, Scatter):
 
     scale_to_image = BooleanProperty(True)
 
+    flip = BooleanProperty(False)
+
     _iw = NumericProperty(0.)
     '''The width of the input image. '''
 
@@ -491,7 +493,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
         if self._iw != img_w or self._ih != img_h:
             update = True
 
-        if img_fmt not in ('yuv420p', 'rgba', 'rgb24', 'gray'):
+        if img_fmt not in ('yuv420p', 'rgba', 'rgb24', 'gray') or self.flip:
             swscale = self._swscale
             if img_fmt != self._sw_src_fmt or swscale is None or update:
                 ofmt = get_best_pix_fmt(
@@ -499,7 +501,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
                 self._swscale = swscale = SWScale(
                     iw=img_w, ih=img_h, ifmt=img_fmt, ow=0, oh=0, ofmt=ofmt)
                 self._sw_src_fmt = img_fmt
-            img = swscale.scale(img)
+            img = swscale.scale(img, _flip=self.flip)
             img_fmt = img.get_pixel_format()
 
         w, h = self.available_size or self.size
