@@ -493,6 +493,9 @@ class BufferImage(KNSpaceBehavior, Scatter):
         if self._iw != img_w or self._ih != img_h:
             update = True
 
+        if self.flip and img_fmt == 'yuv420p':
+            raise Exception('yuv420p cannot be flipped.')
+
         if img_fmt not in ('yuv420p', 'rgba', 'rgb24', 'gray') or self.flip:
             swscale = self._swscale
             if img_fmt != self._sw_src_fmt or swscale is None or update:
