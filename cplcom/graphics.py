@@ -496,11 +496,12 @@ class BufferImage(KNSpaceBehavior, Scatter):
         if self.flip and img_fmt == 'yuv420p':
             raise Exception('yuv420p cannot be flipped.')
 
-        if img_fmt not in ('yuv420p', 'rgba', 'rgb24', 'gray') or self.flip:
+        if img_fmt not in ('yuv420p', 'rgba', 'rgb24', 'gray', 'bgr24', 'bgra'
+                           ) or self.flip:
             swscale = self._swscale
             if img_fmt != self._sw_src_fmt or swscale is None or update:
                 ofmt = get_best_pix_fmt(
-                    img_fmt, ('yuv420p', 'rgba', 'rgb24', 'gray'))
+                    img_fmt, ('yuv420p', 'rgba', 'rgb24', 'gray', 'bgr24', 'bgra'))
                 self._swscale = swscale = SWScale(
                     iw=img_w, ih=img_h, ifmt=img_fmt, ow=0, oh=0, ofmt=ofmt)
                 self._sw_src_fmt = img_fmt
@@ -514,8 +515,9 @@ class BufferImage(KNSpaceBehavior, Scatter):
 
         if self._fmt != img_fmt:
             self._fmt = img_fmt
-            self._kivy_ofmt = {'yuv420p': 'yuv420p', 'rgba': 'rgba',
-                               'rgb24': 'rgb', 'gray': 'luminance'}[img_fmt]
+            self._kivy_ofmt = {
+                'yuv420p': 'yuv420p', 'rgba': 'rgba', 'rgb24': 'rgb',
+                'gray': 'luminance', 'bgr24': 'bgr', 'bgra': 'bgra'}[img_fmt]
             update = True
 
         if update or w != self._last_w or h != self._last_h:
