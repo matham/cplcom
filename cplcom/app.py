@@ -166,6 +166,8 @@ class CPLComApp(KNSpaceBehavior, App):
     def __init__(self, **kw):
         super(CPLComApp, self).__init__(**kw)
         self.knsname = 'app'
+        resource_add_path(join(dirname(__file__), 'media'))
+        resource_add_path(join(dirname(__file__), 'media', 'flat'))
         self.init_load()
 
     def init_load(self):
@@ -175,8 +177,6 @@ class CPLComApp(KNSpaceBehavior, App):
         d = self.data_path
         if isdir(d):
             resource_add_path(d)
-        resource_add_path(join(dirname(__file__), 'media'))
-        resource_add_path(join(dirname(__file__), 'media', 'flat'))
 
         self.filebrowser = Factory.PopupBrowser()
         p = self._close_popup = Factory.ClosePopup()
