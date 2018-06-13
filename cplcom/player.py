@@ -242,7 +242,7 @@ class Player(EventDispatcher):
         self.save_image(fname, img, codec, pix_fmt)
 
     @staticmethod
-    def save_image(fname, img, codec='bmp', pix_fmt='bgr24'):
+    def save_image(fname, img, codec='bmp', pix_fmt='bgr24', lib_opts={}):
         fmt = img.get_pixel_format()
         w, h = img.get_size()
 
@@ -258,7 +258,7 @@ class Player(EventDispatcher):
 
         out_opts = {'pix_fmt_in': fmt, 'width_in': w, 'height_in': h,
                     'frame_rate': (30, 1), 'codec': codec}
-        writer = MediaWriter(fname, [out_opts])
+        writer = MediaWriter(fname, [out_opts], lib_opts=lib_opts)
         writer.write_frame(img=img, pts=0, stream=0)
         writer.close()
 
