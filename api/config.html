@@ -1,0 +1,225 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Config &#8212; CPLCom 0.1.1.dev0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="&lt;no title&gt;" href="app.html" />
+    <link rel="prev" title="CPLCom" href="cplcom.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <span class="target" id="module-cplcom.config"><span id="cplcom-config-api"></span></span><div class="section" id="config">
+<h1>Config<a class="headerlink" href="#config" title="Permalink to this headline">¶</a></h1>
+<p>Configuration used across Moa objects within CPL experiments.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Configuration works as follows. Each class that has configuration attributes
+must list these attributes in a list in the class <code class="docutils literal notranslate"><span class="pre">__settings_attrs__</span></code>
+attribute. Each of the properties listed there must be Kivy properties of
+that class.</p>
+<p>When generating docs, the documentation of these properties are dumped to
+a json file using <a class="reference internal" href="#cplcom.config.create_doc_listener" title="cplcom.config.create_doc_listener"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_doc_listener()</span></code></a> (and should be committed to the
+repo manually).</p>
+<p>Each experiment defines a application class based on
+<code class="xref py py-class docutils literal notranslate"><span class="pre">ExperimentApp</span></code>. Using this classe’s
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">get_config_classes()</span></code> method we get a list
+of all classes used in the current experiment that requires configuration
+and <a class="reference internal" href="#cplcom.config.write_config_attrs_rst" title="cplcom.config.write_config_attrs_rst"><code class="xref py py-func docutils literal notranslate"><span class="pre">write_config_attrs_rst()</span></code></a> is used to combine all these docs
+and display them in a single place in the generated html pages.</p>
+<p>Similarly, when the app is run, a single json file is generated with all these
+config values and is later read and is used to configure the experiment by the
+user. <code class="xref py py-attr docutils literal notranslate"><span class="pre">app_settings</span></code> is where it’s stored
+after reading. Each class is responsible for reading its configuration
+from there.</p>
+</div>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<p>When creating an experiment, ensure that the root stage called <cite>RootStage</cite>
+inherited from <code class="xref py py-class docutils literal notranslate"><span class="pre">ConfigStageBase</span></code> overwrites the
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">get_config_classes()</span></code> method
+returning all the classes that need configuration.</p>
+<p>Then, in the sphinx conf.py file do:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
+    <span class="n">create_doc_listener</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">project_name</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s1">&#39;build-finished&#39;</span><span class="p">,</span> <span class="n">partial</span><span class="p">(</span><span class="n">write_config_attrs_rst</span><span class="p">,</span> <span class="n">ProjectApp</span><span class="o">.</span><span class="n">get_config_classes</span><span class="p">(),</span> <span class="n">project_name</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>and run <cite>make html</cite> twice. This will create the <code class="docutils literal notranslate"><span class="pre">config_attrs.json</span></code> file
+under project_name/data and the config.rst file under doc/source. This
+config.rst should have been listed in the sphinx index so on the second run
+this file will be converted to html containing all the config tokens.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">config_attrs.json</span></code> files are read for all the projects on which
+the experiment depends on, so they should exist in the repos.</p>
+<dl class="function">
+<dt id="cplcom.config.populate_config">
+<code class="descclassname">cplcom.config.</code><code class="descname">populate_config</code><span class="sig-paren">(</span><em>filename</em>, <em>classes</em>, <em>from_file=True</em><span class="sig-paren">)</span><a class="headerlink" href="#cplcom.config.populate_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads the config file and loads all the config data for the classes
+listed in <cite>classes</cite>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cplcom.config.apply_config">
+<code class="descclassname">cplcom.config.</code><code class="descname">apply_config</code><span class="sig-paren">(</span><em>opts</em>, <em>classes</em><span class="sig-paren">)</span><a class="headerlink" href="#cplcom.config.apply_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes the config data read with <a class="reference internal" href="#cplcom.config.populate_config" title="cplcom.config.populate_config"><code class="xref py py-func docutils literal notranslate"><span class="pre">populate_config()</span></code></a> and applys
+them to any existing class instances listed in classes.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cplcom.config.create_doc_listener">
+<code class="descclassname">cplcom.config.</code><code class="descname">create_doc_listener</code><span class="sig-paren">(</span><em>sphinx_app</em>, <em>package</em>, <em>directory='data'</em>, <em>filename='config_attrs.json'</em><span class="sig-paren">)</span><a class="headerlink" href="#cplcom.config.create_doc_listener" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a listener for the <code class="docutils literal notranslate"><span class="pre">__settings_attrs__</span></code> attributes and dumps
+their docs to <code class="docutils literal notranslate"><span class="pre">directory/filename</span></code> for package.</p>
+<p>To us, in the sphinx conf.py file do:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
+    <span class="n">create_doc_listener</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">package</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">package</span></code> is the module for which the docs are generated.</p>
+<p>After docs generation the generated <code class="docutils literal notranslate"><span class="pre">directory/filename</span></code> must be
+committed manually to the repo.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cplcom.config.get_config_attrs_doc">
+<code class="descclassname">cplcom.config.</code><code class="descname">get_config_attrs_doc</code><span class="sig-paren">(</span><em>classes</em>, <em>json_map={}</em>, <em>json_default='data\\config_attrs.json'</em><span class="sig-paren">)</span><a class="headerlink" href="#cplcom.config.get_config_attrs_doc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects is a dict of object (class) paths and keys are the names of the
+config attributes of the class.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cplcom.config.write_config_attrs_rst">
+<code class="descclassname">cplcom.config.</code><code class="descname">write_config_attrs_rst</code><span class="sig-paren">(</span><em>classes</em>, <em>package</em>, <em>app</em>, <em>exception</em>, <em>json_map={}</em>, <em>json_default='data\\config_attrs.json'</em>, <em>rst_fname='doc\\source\\config.rst'</em><span class="sig-paren">)</span><a class="headerlink" href="#cplcom.config.write_config_attrs_rst" title="Permalink to this definition">¶</a></dt>
+<dd><p>Walks through all the configurable classes of this experiment
+(should be gotten from
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">get_config_classes()</span></code>) and loads the
+docs of those properties and generates a rst output file with all the
+tokens.</p>
+<p>For example in the sphinx conf.py file do:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s1">&#39;build-finished&#39;</span><span class="p">,</span> <span class="n">partial</span><span class="p">(</span><span class="n">write_config_attrs_rst</span><span class="p">,</span> <span class="n">ProjectApp</span><span class="o">.</span><span class="n">get_config_classes</span><span class="p">(),</span> <span class="n">project_name</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>where project_name is the project module and ProjectApp is the App
+that runs the experiment.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">CPLCom</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=matham&repo=cplcom&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html">CPLCom Examples</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="api.html">The CPLCom API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cplcom.html">CPLCom</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="moa/moa_api.html">Moa Interface</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="api.html">The CPLCom API</a><ul>
+      <li>Previous: <a href="cplcom.html" title="previous chapter">CPLCom</a></li>
+      <li>Next: <a href="app.html" title="next chapter">&lt;no title&gt;</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/api/config.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="../_sources/api/config.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+    <a href="https://github.com/matham/cplcom" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>
