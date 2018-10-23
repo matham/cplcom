@@ -203,7 +203,7 @@ class HighightButtonBehavior(object):
             self.tracked_widgets.remove(self)
 
     def on_hover_text(self, *largs):
-        if self.hovering:
+        if self.hovering and self.label:
             self.label.text = self.hover_text
 
     @staticmethod
@@ -213,7 +213,7 @@ class HighightButtonBehavior(object):
 
     def attach_widget(self):
         self.hovering = True
-        if self.hover_text:
+        if self.hover_text and self.label is not None:
             self.label.show_label(self)
             self.label.text = self.hover_text
         HighightButtonBehavior.attached_widget = self
@@ -221,7 +221,7 @@ class HighightButtonBehavior(object):
     def detach_widget(self):
         self.hovering = False
         HighightButtonBehavior.attached_widget = None
-        if self.hover_text:
+        if self.hover_text and self.label is not None:
             self.label.hide_label()
 
     @staticmethod

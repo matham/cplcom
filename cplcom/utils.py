@@ -11,7 +11,7 @@ from io import StringIO
 from ruamel.yaml import YAML, SafeRepresenter
 
 __all__ = ('pretty_time', 'pretty_space', 'byteify', 'json_dumps',
-           'json_loads', 'ColorTheme', 'apply_args_post', 'collide_parent_tree')
+           'json_loads', 'ColorTheme', 'apply_args_post')
 
 SafeRepresenter.add_representer(ObservableList, SafeRepresenter.represent_list)
 SafeRepresenter.add_representer(ObservableDict, SafeRepresenter.represent_dict)
@@ -174,6 +174,14 @@ class ColorTheme(EventDispatcher):
 
     divider = StringProperty(get_color_from_hex('BDBDBDFF'))
 
+    @staticmethod
+    def interpolate(color1, color2, fraction):
+        color = []
+        for c1, c2 in zip(color1, color2):
+            c = min(max((c2 - c1) * fraction + c1, 0), 1)
+            color.append(c)
+        return color
+
 
 class KVBehavior(object):
     pass
@@ -186,20 +194,6 @@ def apply_args_post(cls, **keywordargs):
             setattr(o, key, value)
         return o
     return ret_func
-
-
-def collide_parent_tree(widget, x, y):
-    if not widget.collide_point(x, y):
-        return False
-
-    parent = widget.parent
-    while parent and hasattr(parent, 'to_parent'):
-        x, y = parent.to_parent(x, y)  # transform to parent's parent's
-        if not parent.collide_point(x, y):
-            return False
-
-        parent = parent.parent
-    return True
 
 Factory.register(classname='ColorTheme', cls=ColorTheme)
 Factory.register(classname='KVBehavior', cls=KVBehavior)
