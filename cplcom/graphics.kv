@@ -340,6 +340,7 @@
 
 
 <-FlatTextInput>:
+    write_tab: False
     canvas.before:
         Color:
             rgba: self.cursor_color
@@ -347,12 +348,12 @@
             size: (self.size[0], sp(2))
             pos: self.pos[0], self.cursor_pos[1] - self.line_height - sp(2)
         Color:
-            rgba: (self.cursor_color if self.focus and not self.cursor_blink else (0, 0, 0, 0))
+            rgba: self.cursor_color if self.focus and not self._cursor_blink else (0, 0, 0, 0)
         Rectangle:
             pos: [int(x) for x in self.cursor_pos]
-            size: sp(2), -self.line_height
+            size: root.cursor_width, -self.line_height
         Color:
-            rgba: self.disabled_foreground_color if self.disabled else (self.hint_text_color if not self.text and not self.focus else self.foreground_color)
+            rgba: self.disabled_foreground_color if self.disabled else (self.hint_text_color if not self.text else self.foreground_color)
 
 <SizedTextInputBehavior@KVBehavior>:
     size_hint_y: None
