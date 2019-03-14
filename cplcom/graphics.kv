@@ -57,7 +57,7 @@
     size_hint_y: None
     height: label.texture_size[1]
     text: ''
-    level: 'error'
+    icon_name: 'error'
     Label:
         id: label
         text_size: self.width, None
@@ -71,9 +71,9 @@
                 pos: self.pos
     ImageButton:
         size_hint: None, None
-        width: min(60, label.height)
-        height: min(60, label.height)
-        source: '{}.png'.format(root.level)
+        width: min(dp(32), label.height)
+        height: min(dp(32), label.height)
+        source: '{}.png'.format(root.icon_name)
 
 <ErrorLogContainer@RecycleView>:
     bar_width: '15dp'
@@ -90,12 +90,17 @@
 
 <ErrorLog@CallbackPopup>:
     container: container
+    user_container: user_container
     BoxLayout:
         orientation: 'vertical'
         padding: '15dp', '15dp'
         spacing: '10dp'
         ErrorLogContainer:
             id: container
+        BoxLayout:
+            id: user_container
+            size_hint_y: None
+            height: self.minimum_height
         FloatLayout:
             size_hint_y: None
             height: close.texture_size[1]
@@ -123,8 +128,9 @@
 
 <ErrorIndicatorPopup@ErrorIndicatorBase>:
     on_release: self._display.open()
+    display_cls: 'ErrorLog'
     on_parent:
-        self._display = Factory.ErrorLog(title='Error Log')
+        self._display = Factory.get(self.display_cls)(title='Error Log')
         self._container = self._display.container
 
 
@@ -152,8 +158,9 @@
 <FlatErrorIndicatorPopup@HighightButtonBehavior+ErrorIndicatorBehavior+IconSizedBehavior+FlatColorBehavior+KNSpaceBehavior+Image>:
     on_release: self._display.open()
     flat_color: self.flat_color[:3] + [self._alpha]
+    display_cls: 'ErrorLog'
     on_parent:
-        self._display = Factory.ErrorLog(title='Error Log')
+        self._display = Factory.get(self.display_cls)(title='Error Log')
         self._container = self._display.container
 
 <IconSwitchBehavior@HighightButtonBehavior+FlatColorBehavior+KNSpaceBehavior+ToggleButtonBehavior+BoxLayout>:

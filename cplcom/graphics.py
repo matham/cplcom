@@ -505,7 +505,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
                 self._swscale = swscale = SWScale(
                     iw=img_w, ih=img_h, ifmt=img_fmt, ow=0, oh=0, ofmt=ofmt)
                 self._sw_src_fmt = img_fmt
-            img = swscale.scale(img, _flip=self.flip)
+            img = swscale.scale(img)
             img_fmt = img.get_pixel_format()
 
         w, h = self.available_size or self.size
@@ -604,6 +604,14 @@ class ErrorIndicatorBehavior(KNSpaceBehavior, ButtonBehavior):
 
     _anim = None
 
+    levels = {'error': 0, 'warning': 1, 'info': 2}
+
+    icon_names = {}
+
+    count = NumericProperty(0)
+
+    __events__ = ('on_log_event', )
+
     def __init__(self, **kw):
         super(ErrorIndicatorBehavior, self).__init__(**kw)
         a = self._anim = Sequence(
@@ -623,18 +631,25 @@ class ErrorIndicatorBehavior(KNSpaceBehavior, ButtonBehavior):
                 Can be one of `error`, `warning`, or `info` indicating
                 the importance of the item. Defaults to `error`.
         '''
-        levels = {'error': 0, 'warning': 1, 'info': 2}
+        levels = self.levels
         if level not in levels:
             raise ValueError('"{}" is not a valid level within "{}"'.
                              format(level, levels.keys()))
 
+        self.count += 1
         if self._level == 'ok':
-            self._level = level
-            self._anim.start(self)
+            if levels[level] < levels['info']:
+                self._level = level
+                self._anim.start(self)
         elif levels[level] < levels[self._level]:
             self._level = level
 
-        self._container.data.append({'text': text, 'level': level})
+        self._container.data.append(
+            {'text': text, 'icon_name': self.icon_names.get(level, level)})
+        self.dispatch('on_log_event', self, text, level)
+
+    def on_log_event(self, *largs):
+        pass
 
 
 class ErrorIndicatorBase(ErrorIndicatorBehavior, Widget):
