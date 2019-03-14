@@ -475,7 +475,10 @@ class BufferImage(KNSpaceBehavior, Scatter):
     }
     '''
 
-    def update_img(self, img):
+    def on_flip(self, *largs):
+        self.update_img(self.img, True)
+
+    def update_img(self, img, force=False):
         ''' Updates the screen with a new image.
 
         :Parameters:
@@ -489,19 +492,16 @@ class BufferImage(KNSpaceBehavior, Scatter):
         img_fmt = img.get_pixel_format()
         self.image_size = img_w, img_h = img.get_size()
 
-        update = False
+        update = force
         if self._iw != img_w or self._ih != img_h:
             update = True
 
-        if self.flip and img_fmt == 'yuv420p':
-            raise Exception('yuv420p cannot be flipped.')
-
-        if img_fmt not in ('yuv420p', 'rgba', 'rgb24', 'gray', 'bgr24', 'bgra'
-                           ) or self.flip:
+        if img_fmt not in ('yuv420p', 'rgba', 'rgb24', 'gray', 'bgr24', 'bgra'):
             swscale = self._swscale
             if img_fmt != self._sw_src_fmt or swscale is None or update:
                 ofmt = get_best_pix_fmt(
-                    img_fmt, ('yuv420p', 'rgba', 'rgb24', 'gray', 'bgr24', 'bgra'))
+                    img_fmt, (
+                        'yuv420p', 'rgba', 'rgb24', 'gray', 'bgr24', 'bgra'))
                 self._swscale = swscale = SWScale(
                     iw=img_w, ih=img_h, ifmt=img_fmt, ow=0, oh=0, ofmt=ofmt)
                 self._sw_src_fmt = img_fmt
@@ -564,6 +564,8 @@ class BufferImage(KNSpaceBehavior, Scatter):
                 tex.add_reload_observer(self.reload_buffer)
 
             tex.flip_vertical()
+            if self.flip:
+                tex.flip_horizontal()
             self.texture_size = img_w, img_h
 
         if kivy_ofmt == 'yuv420p':
