@@ -33,7 +33,7 @@ from kivy.uix.behaviors.button import ButtonBehavior
 from kivy.uix.behaviors.focus import FocusBehavior
 from kivy.animation import Sequence, Animation
 from kivy.factory import Factory
-from kivy.garden.filebrowser import FileBrowser
+from kivy_garden.filebrowser import FileBrowser
 from kivy.compat import string_types
 from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown

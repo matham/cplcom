@@ -147,6 +147,10 @@ class CPLComApp(KNSpaceBehavior, App):
 
     _close_message = StringProperty('Cannot close currently')
 
+    _ini_config_filename = 'config.ini'
+
+    _data_path = ''
+
     def on__close_message(self, *largs):
         self._close_popup.text = self._close_message
 
@@ -188,7 +192,7 @@ class CPLComApp(KNSpaceBehavior, App):
             parser.add_section('Experiment')
         if not parser.has_option('Experiment', 'json_config_path'):
             parser.set('Experiment', 'json_config_path', self.json_config_path)
-        filename = self.ensure_config_file('config.ini')
+        filename = self.ensure_config_file(self._ini_config_filename)
         parser.read(filename)
         with open(filename, 'w') as fh:
             parser.write(fh)
@@ -206,6 +210,9 @@ class CPLComApp(KNSpaceBehavior, App):
     def data_path(self):
         '''The install dependent path to the config data.
         '''
+        if self._data_path:
+            return self._data_path
+
         if hasattr(sys, '_MEIPASS'):
             if isdir(join(sys._MEIPASS, 'data')):
                 return join(sys._MEIPASS, 'data')
