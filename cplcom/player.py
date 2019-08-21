@@ -35,7 +35,7 @@ except ImportError:
 
 from kivy.clock import Clock
 from kivy.compat import clock
-from kivy.uix.behaviors.knspace import knspace
+from kivy.app import App
 from kivy.properties import (
     NumericProperty, ReferenceListProperty,
     ObjectProperty, ListProperty, StringProperty, BooleanProperty,
@@ -226,7 +226,7 @@ class Player(EventDispatcher):
         exc_info = kwargs.get('exc_info', None)
         if exc_info:
             exc_info = ''.join(traceback.format_exception(*exc_info))
-        knspace.app.handle_exception(e, exc_info=exc_info)
+        App.get_running_app().handle_exception(e, exc_info=exc_info)
 
     def display_frame(self, *largs):
         pass

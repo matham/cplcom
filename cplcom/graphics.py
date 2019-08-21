@@ -2,7 +2,7 @@
 ============
 '''
 from os.path import join, dirname
-from time import clock
+from time import perf_counter
 from functools import partial
 from inspect import isclass
 from math import pow, fabs
@@ -28,7 +28,6 @@ from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.core.window import Window
 from kivy.metrics import dp
-from kivy.uix.behaviors.knspace import KNSpaceBehavior
 from kivy.uix.behaviors.button import ButtonBehavior
 from kivy.uix.behaviors.focus import FocusBehavior
 from kivy.animation import Sequence, Animation
@@ -192,15 +191,15 @@ class HighightButtonBehavior(object):
     def __init__(self, **kwargs):
         super(HighightButtonBehavior, self).__init__(**kwargs)
         if self.show_hover:
-            self.tracked_widgets.append(self)
+            self.tracked_widgets.append(self.proxy_ref)
 
     def on_show_hover(self, *largs):
         if self.show_hover:
-            self.tracked_widgets.append(self)
+            self.tracked_widgets.append(self.proxy_ref)
         else:
             if self.hovering:
                 self.detach_widget()
-            self.tracked_widgets.remove(self)
+            self.tracked_widgets.remove(self.proxy_ref)
 
     def on_hover_text(self, *largs):
         if self.hovering and self.label:
@@ -210,6 +209,13 @@ class HighightButtonBehavior(object):
     def init_class():
         Window.fbind('mouse_pos', HighightButtonBehavior.track_mouse)
         HighightButtonBehavior.label = FollowingLabel(markup=True)
+
+    @staticmethod
+    def uninit_class():
+        Window.funbind('mouse_pos', HighightButtonBehavior.track_mouse)
+        HighightButtonBehavior.label = None
+        HighightButtonBehavior.attached_widget = None
+        del HighightButtonBehavior.tracked_widgets[:]
 
     def attach_widget(self):
         self.hovering = True
@@ -234,9 +240,12 @@ class HighightButtonBehavior(object):
                 widget.detach_widget()
 
         for widget in HighightButtonBehavior.tracked_widgets:
-            if widget.collide_point(*widget.to_widget(*pos)):
-                widget.attach_widget()
-                break
+            try:
+                if widget.collide_point(*widget.to_widget(*pos)):
+                    widget.attach_widget()
+                    break
+            except ReferenceError:
+                pass
 
 
 class SpinnerBehavior(AutoSizedSpinnerBehavior):
@@ -379,7 +388,7 @@ class EventFocusBehavior(FocusBehavior):
         pass
 
 
-class BufferImage(KNSpaceBehavior, Scatter):
+class BufferImage(Scatter):
     '''Class that displays an image and allows its manipulation using touch.
     It receives an ffpyplayer :py:class:`~ffpyplayer.pic.Image` object.
     '''
@@ -588,7 +597,7 @@ class BufferImage(KNSpaceBehavior, Scatter):
         self.update_img(self.img)
 
 
-class ErrorIndicatorBehavior(KNSpaceBehavior, ButtonBehavior):
+class ErrorIndicatorBehavior(ButtonBehavior):
     '''A Button based class that visualizes and notifies on the current error
     status.
 
@@ -693,7 +702,7 @@ class TimeLineSlice(Widget):
     '''
 
 
-class TimeLine(KNSpaceBehavior, BoxLayout):
+class TimeLine(BoxLayout):
     '''A widget that displays an elapsing time line. It has named time slices
     indicating e.g. timed stages and the time line progresses through them.
 
@@ -743,14 +752,14 @@ class TimeLine(KNSpaceBehavior, BoxLayout):
     tuple indicating the rgba value (0-1) to use.
     '''
 
-    _start_t = clock()
+    _start_t = perf_counter()
 
     def __init__(self, **kwargs):
         super(TimeLine, self).__init__(**kwargs)
         Clock.schedule_interval(self._update_clock, .15)
 
     def _update_clock(self, dt):
-        elapsed = clock() - self._start_t
+        elapsed = perf_counter() - self._start_t
         self.timer = pretty_time(elapsed)
         if self.slices and self.current_slice is not None:
             self.slices[self.current_slice].elapsed_t = elapsed
@@ -789,7 +798,7 @@ class TimeLine(KNSpaceBehavior, BoxLayout):
                     s.elapsed_t = max(s.duration, 10000)
             self.current_slice = None
             self.text = name
-        self._start_t = clock()
+        self._start_t = perf_counter()
 
     def clear_slices(self):
         '''Removes all the slices and clears the time line.
@@ -799,7 +808,7 @@ class TimeLine(KNSpaceBehavior, BoxLayout):
         self.current_slice = None
         self.slice_names = []
         self.slices = []
-        self._start_t = clock()
+        self._start_t = perf_counter()
 
     def update_slice_attrs(self, current_name, **kwargs):
         '''Called to update the attributes of the :class:`TimeLineSlice`

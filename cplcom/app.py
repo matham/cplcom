@@ -8,6 +8,7 @@ import os
 import inspect
 import sys
 import json
+import logging
 from functools import wraps
 from configparser import ConfigParser
 from os.path import dirname, join, isdir
@@ -23,7 +24,6 @@ from kivy import resources
 from kivy.modules import inspector
 from kivy.resources import resource_add_path
 from kivy.factory import Factory
-from kivy.uix.behaviors.knspace import knspace, KNSpaceBehavior
 from kivy.base import ExceptionManager, ExceptionHandler
 from kivy.app import App
 from kivy.logger import Logger
@@ -38,7 +38,7 @@ if not os.environ.get('KIVY_DOC_INCLUDE', None):
 __all__ = ('CPLComApp', 'run_app', 'app_error', 'app_error_async')
 
 
-def app_error(app_error_func, error_indicator='', threaded=False):
+def app_error(app_error_func, threaded=False):
     '''A decorator which wraps the function in `try...except` and calls
     :meth:`CPLComApp.handle_exception` when a exception is raised.
 
@@ -54,9 +54,11 @@ def app_error(app_error_func, error_indicator='', threaded=False):
             return app_error_func(*largs, **kwargs)
         except Exception as e:
             def report_exception(*largs):
-                knspace.app.handle_exception(
-                    e, exc_info=sys.exc_info(),
-                    error_indicator=error_indicator)
+                if App.get_running_app() is not None:
+                    App.get_running_app().handle_exception(
+                        e, exc_info=sys.exc_info())
+                else:
+                    logging.exception(e)
 
             if threaded:
                 Clock.schedule_once(report_exception)
@@ -66,7 +68,7 @@ def app_error(app_error_func, error_indicator='', threaded=False):
     return safe_func
 
 
-def app_error_async(app_error_func, error_indicator='', threaded=False):
+def app_error_async(app_error_func, threaded=False):
     '''A decorator which wraps the async function in `try...except` and calls
     :meth:`CPLComApp.handle_exception` when a exception is raised.
 
@@ -82,9 +84,11 @@ def app_error_async(app_error_func, error_indicator='', threaded=False):
             return await app_error_func(*largs, **kwargs)
         except Exception as e:
             def report_exception(*largs):
-                knspace.app.handle_exception(
-                    e, exc_info=sys.exc_info(),
-                    error_indicator=error_indicator)
+                if App.get_running_app() is not None:
+                    App.get_running_app().handle_exception(
+                        e, exc_info=sys.exc_info())
+                else:
+                    logging.exception(e)
 
             if threaded:
                 Clock.schedule_once(report_exception)
@@ -94,7 +98,7 @@ def app_error_async(app_error_func, error_indicator='', threaded=False):
     return safe_func
 
 
-class CPLComApp(KNSpaceBehavior, App):
+class CPLComApp(App):
     '''The base app.
     '''
 
@@ -136,12 +140,12 @@ class CPLComApp(KNSpaceBehavior, App):
     by this app class. That class is described in ``cplcom/graphics.kv``.
     '''
 
-    yesno_prompt = ObjectProperty(None)
+    yesno_prompt = ObjectProperty(None, allownone=True)
     '''Stores a instance of :class:`YesNoPrompt` that is automatically created
     by this app class. That class is described in ``cplcom/graphics.kv``.
     '''
 
-    theme = ObjectProperty(ColorTheme(), rebind=True)
+    theme = ObjectProperty(None, rebind=True)
 
     _close_popup = ObjectProperty(None)
 
@@ -163,13 +167,14 @@ class CPLComApp(KNSpaceBehavior, App):
         :meth:`~cplcom.moa.stages.ConfigStageBase.get_config_classes` as well
         as the current app class.
         '''
-        if App.get_running_app():
-            return {'app': App.get_running_app()}
         return {'app': cls}
 
+    def get_app_config_classes(self):
+        return {'app': self}
+
     def __init__(self, **kw):
+        self.theme = ColorTheme()
         super(CPLComApp, self).__init__(**kw)
-        self.knsname = 'app'
         resource_add_path(join(dirname(__file__), 'media'))
         resource_add_path(join(dirname(__file__), 'media', 'flat'))
         self.init_load()
@@ -220,18 +225,18 @@ class CPLComApp(KNSpaceBehavior, App):
         return join(dirname(inspect.getfile(self.__class__)), 'data')
 
     def load_app_settings_from_file(self):
-        classes = self.get_config_classes()
+        classes = self.get_app_config_classes()
         self.app_settings = populate_dump_config(
             self.ensure_config_file(self.json_config_path), classes)
 
         apply_config({
-            'app': self.app_settings['app']}, self.get_config_classes())
+            'app': self.app_settings['app']}, self.get_app_config_classes())
 
     def apply_app_settings(self):
-        apply_config(self.app_settings, self.get_config_classes())
+        apply_config(self.app_settings, self.get_app_config_classes())
 
     def dump_app_settings_to_file(self):
-        classes = self.get_config_classes()
+        classes = self.get_app_config_classes()
         populate_dump_config(self.ensure_config_file(self.json_config_path),
                              classes, from_file=False)
 
@@ -265,8 +270,7 @@ class CPLComApp(KNSpaceBehavior, App):
             return
         self.json_config_path = join(path, filename)
 
-    def handle_exception(self, msg, exc_info=None, error_indicator='',
-                         level='error', *largs):
+    def handle_exception(self, msg, exc_info=None, level='error', *largs):
         '''Should be called whenever an exception is caught in the app.
 
         :parameters:
@@ -286,17 +290,19 @@ class CPLComApp(KNSpaceBehavior, App):
         else:
             getattr(self.get_logger(), level)(msg)
 
-        error_indicator = error_indicator or self.error_indicator
+        error_indicator = self.error_indicator
         if not error_indicator:
             return
 
-        if isinstance(error_indicator, str):
-            error_indicator = getattr(knspace, error_indicator, None)
-        if error_indicator:
-            error_indicator.add_item('{}'.format(msg))
+        error_indicator.add_item('{}'.format(msg))
 
     def get_logger(self):
         return Logger
+
+    def clean_up(self):
+        if self.inspect and self.root:
+            from kivy.core.window import Window
+            inspector.stop(Window, self.root)
 
 
 class _CPLComHandler(ExceptionHandler):
@@ -309,7 +315,7 @@ class _CPLComHandler(ExceptionHandler):
         return ExceptionManager.RAISE
 
 
-def run_app(cls_or_app, cleanup=None):
+def run_app(cls_or_app):
     '''Entrance method used to start the experiment GUI. It creates and runs
     a :class:`CPLComApp` type instance.
     '''
@@ -324,17 +330,17 @@ def run_app(cls_or_app, cleanup=None):
     except Exception as e:
         app.handle_exception(e, exc_info=sys.exc_info())
 
-    if cleanup:
-        try:
-            cleanup(app)
-        except Exception as e:
-            app.handle_exception(e, exc_info=sys.exc_info())
+    try:
+        app.clean_up()
+    except Exception as e:
+        app.handle_exception(e, exc_info=sys.exc_info())
 
     Window.funbind('on_request_close', app._ask_close)
     ExceptionManager.remove_handler(handler)
+    return app
 
 
-async def run_app_async(cls_or_app, cleanup=None):
+async def run_app_async(cls_or_app):
     '''Entrance method used to start the experiment GUI. It creates and runs
     a :class:`CPLComApp` type instance.
     '''
@@ -349,11 +355,10 @@ async def run_app_async(cls_or_app, cleanup=None):
     except Exception as e:
         app.handle_exception(e, exc_info=sys.exc_info())
 
-    if cleanup:
-        try:
-            cleanup(app)
-        except Exception as e:
-            app.handle_exception(e, exc_info=sys.exc_info())
+    try:
+        app.clean_up()
+    except Exception as e:
+        app.handle_exception(e, exc_info=sys.exc_info())
 
     Window.funbind('on_request_close', app._ask_close)
     ExceptionManager.remove_handler(handler)

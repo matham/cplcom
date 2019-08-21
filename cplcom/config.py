@@ -58,7 +58,6 @@ from os.path import join, dirname
 import re
 from importlib import import_module
 import json
-from kivy.uix.behaviors.knspace import knspace
 from kivy.compat import PY2, string_types
 from cplcom.utils import byteify, yaml_loads, yaml_dumps
 
@@ -117,10 +116,7 @@ def _get_classses_settings_attrs(cls):
 
 
 def _get_config_dict(name, cls, opts):
-    if isinstance(cls, string_types):
-        obj = getattr(knspace, cls)
-    else:
-        obj = cls
+    obj = cls
 
     opt = opts.get(name, {})
     new_vals = {}
@@ -174,9 +170,7 @@ def apply_config(opts, classes):
         if name not in opts:
             continue
 
-        if isinstance(cls, string_types):
-            obj = getattr(knspace, name)
-        elif isclass(cls):
+        if isclass(cls):
             continue
         else:
             obj = cls
@@ -284,8 +278,6 @@ def get_config_attrs_doc(
             flat_clsses[name] = cls
 
     for name, cls in flat_clsses.items():
-        if isinstance(cls, string_types):
-            cls = getattr(knspace, cls)
         if not isclass(cls):
             cls = cls.__class__
         if not _get_settings_attrs(cls):

@@ -6,6 +6,7 @@ from kivy.utils import get_color_from_hex
 from kivy.properties import StringProperty, ObservableDict, ObservableList
 from kivy.factory import Factory
 from kivy.event import EventDispatcher
+from kivy.weakproxy import WeakProxy
 import json
 from io import StringIO
 from ruamel.yaml import YAML, SafeRepresenter
