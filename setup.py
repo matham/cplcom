@@ -24,7 +24,7 @@ setup(
                  'Operating System :: Microsoft :: Windows',
                  'Intended Audience :: Developers'],
     packages=find_packages(),
-    install_requires=['ruamel.yaml', ],
+    install_requires=['ruamel.yaml', 'sphinx-rtd-theme'],
     package_data={'cplcom': ['media/*', 'graphics.kv', 'data/*',
                              'moa/graphics.kv']}
 )

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import sphinx_rtd_theme
 from sphinx.ext.autodoc import ClassDocumenter
+import os
 
 import cplcom
 from cplcom.config import create_doc_listener
@@ -9,7 +11,8 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    "sphinx_rtd_theme",
 ]
 
 html_sidebars = {
@@ -59,7 +62,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'CPLComdoc'
@@ -97,4 +100,6 @@ class MyClassDocumenter(ClassDocumenter):
 
 def setup(app):
     app.add_autodocumenter(MyClassDocumenter)
-    create_doc_listener(app, cplcom)
+    create_doc_listener(
+        app, cplcom,
+        os.environ.get('CPLCOM_CONFIG_DOC_PATH', 'config_attrs.json'))
