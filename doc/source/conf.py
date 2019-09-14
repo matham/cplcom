@@ -3,7 +3,7 @@
 import sphinx_rtd_theme
 from sphinx.ext.autodoc import ClassDocumenter
 import os
-
+import kivy
 import cplcom
 from cplcom.config import create_doc_listener
 
